@@ -2309,7 +2309,8 @@ end
 -- OBS as a browser option.  This function keeps that files HTML text updated.
 -------------------------------------------------------------------------------------------------------------------------
 function update_monitor()
-	dbg_method("update_monitor")
+	dbg_method("update_monitor--skipped")
+	do return true end
 	get_text()  -- read actual text in sources
 	local tableback = "black"
 	local text = ""
