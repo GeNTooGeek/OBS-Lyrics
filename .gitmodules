@@ -1,0 +1,3 @@
+[submodule "OBSDebugger"]
+	path = OBSDebugger
+	url = https://github.com/GeNTooGeek/OBSDebugger
