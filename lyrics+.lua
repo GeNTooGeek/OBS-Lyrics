@@ -44,8 +44,9 @@
 -- intent of that text might be to the user.
 
 
-obs = obslua
-bit = require("bit")
+local obs = obslua
+local bit = require("bit")
+local d = require("OBSDebugger.debugger")
 
 -- SOURCE DEFINITIONS USED WITH LOAD LYRIC SOURCES
 source_def = {}
@@ -194,12 +195,17 @@ help =
 	"Mark Verses     ##V        Override Title     #T: text\n\n" ..
 	"Optional comma delimited meta tags follow '//meta ' on 1st line"
 
--- SIMPLE DEBUGGING/PRINT MECHANISM
-DEBUG = true -- on switch for entire debugging mechanism
-DEBUG_METHODS = true -- print method names
-DEBUG_INNER = true -- print inner method breakpoints
-DEBUG_CUSTOM = true -- print custom debugging messages
-DEBUG_BOOL = true -- print message with bool state true/false
+
+d.DEBUG = true -- on switch for entire debugging mechanism
+d.DEBUG_ALL = false
+d.DEBUG_FUNCTION = true -- print method names
+d.DEBUG_TRACE = false -- 
+d.DEBUG_INNER = false -- print inner method breakpoints
+d.DEBUG_CUSTOM = false -- print custom debugging messages
+d.DEBUG_BOOL = false -- print message with bool state true/false
+d.DEBUG_TABLE = false
+
+--d.FunctionsToDebug("source_active")
 
 --------
 ----------------
@@ -213,26 +219,31 @@ DEBUG_BOOL = true -- print message with bool state true/false
 -- Manages adding a transition for duplicated sources mode if checked
 ---------------------------------------------------------------------------------------------------------------------
 function next_lyric(pressed)
+	d.DebugFunction("next_lyric")
 	if not pressed then
+		d.DebugInner("not pressed")
+		d.DebugFunction("next_lyric", true)
 		return
 	end
-	dbg_method("next_lyric")
+	
 	-- check if transition enabled
 	if transition_enabled and not transition_completed then
 		obs.obs_frontend_preview_program_trigger_transition()
 		transition_completed = true
+		d.DebugFunction("next_lyric", true)
 		return
 	end
-	dbg_inner("next page")
+	d.DebugInner("next page")
 	if (#lyrics > 0 or #alternate > 0) and sourceShowing() then -- only change if defined and showing
 		if page_index < #lyrics then
 			page_index = page_index + 1
-			dbg_inner("page_index: " .. page_index)
+			d.DebugInner("page_index: " .. page_index)
 			transition_lyric_text(false)
 		else
 			next_prepared(true)
 		end
 	end
+	d.DebugFunction("next_lyric", true)
 end
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -241,19 +252,23 @@ end
 -- Manages adding a transition for duplicated sources mode if checked
 ---------------------------------------------------------------------------------------------------------------------
 function prev_lyric(pressed)
+	d.DebugFunction("prev_lyric")
 	if not pressed then
+		d.DebugInner("not pressed")
+		d.DebugFunction("prev_lyric", true)
 		return
 	end
-	dbg_method("prev_lyric")
+	
 	if (#lyrics > 0 or #alternate > 0) and sourceShowing() then -- only change if defined and showing
 		if page_index > 1 then
 			page_index = page_index - 1
-			dbg_inner("page_index: " .. page_index)
+			d.DebugInner("page_index: " .. page_index)
 			transition_lyric_text(false)
 		else
 			prev_prepared(true)
 		end
 	end
+	d.DebugFunction("prev_lyric", true)
 end
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -263,21 +278,26 @@ end
 -- Songs currently shown in Preview mode are discarded and the Preview Mode cancelled
 ---------------------------------------------------------------------------------------------------------------------
 function prev_prepared(pressed)
+	d.DebugFunction("prev_prepared")
 	if not pressed then
+		d.DebugFunction("prev_prepared", true)
 		return
 	end
 	if #prepared_songs == 0 then
+		d.DebugFunction("prev_prepared", true)
 		return
 	end
 	using_preview = false
 	if using_source then
 		using_source = false
 		prepare_selected(prepared_songs[prepared_index])
+		d.DebugFunction("prev_prepared", true)
 		return
 	end
 	if prepared_index > 1 then
 		using_source = false
 		prepare_selected(prepared_songs[prepared_index - 1])
+		d.DebugFunction("prev_prepared", true)
 		return
 	end
 	if not source_active or using_source then
@@ -288,6 +308,7 @@ function prev_prepared(pressed)
 		prepared_index = #prepared_songs -- wrap prepared index to end so ready if leaving load source
 		load_source_song(load_source, false)
 	end
+	d.DebugFunction("prev_prepared", true)
 end
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -297,35 +318,41 @@ end
 -- Songs currently shown in Preview mode are discarded and the Preview Mode cancelled
 ---------------------------------------------------------------------------------------------------------------------
 function next_prepared(pressed)
+	d.DebugFunction("next_prepared")
 	if not pressed then
+		d.DebugFunction("next_prepared", true)
 		return
 	end
 	if #prepared_songs == 0 then
+		d.DebugFunction("next_prepared", true)
 		return
 	end
 	using_preview = false
 	if using_source then
 		using_source = false
-		dbg_custom("do current prepared")
+		d.DebugCustom("do current prepared")
 		prepare_selected(prepared_songs[prepared_index]) -- if source load song showing then goto curren prepared song
+		d.DebugFunction("next_prepared", true)
 		return
 	end
 	if prepared_index < #prepared_songs then
 		using_source = false
-		dbg_custom("do next prepared")
+		d.DebugCustom("do next prepared")
 		prepare_selected(prepared_songs[prepared_index + 1]) -- if prepared then goto next prepared
+		d.DebugFunction("next_prepared", true)
 		return
 	end
 	if not source_active or using_source then
 		using_source = false
-		dbg_custom("do first prepared")
+		d.DebugCustom("do first prepared")
 		prepare_selected(prepared_songs[1]) -- at the end so go back to start if no source load available
 	else
 		using_source = true
-		dbg_custom("do source prepared")
+		d.DebugCustom("do source prepared")
 		prepared_index = 1 -- wrap prepared index to beginning so ready if leaving load source
 		load_source_song(load_source, false)
 	end
+	d.DebugFunction("next_prepared", true)
 end
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -336,7 +363,7 @@ function home_prepared(pressed)
 	if not pressed then
 		return false
 	end
-	dbg_method("home_prepared")
+	d.DebugFunction("home_prepared")
 	using_source = false
 	page_index = 0
 	using_preview = false
@@ -349,6 +376,7 @@ function home_prepared(pressed)
 	obs.obs_properties_apply_settings(props, script_sets)
 	prepared_index = 1
 	prepare_selected(prepared_songs[prepared_index])
+	d.DebugFunction("home_prepared", true)
 	return true
 end
 
@@ -359,9 +387,10 @@ function home_song(pressed)
 	if not pressed then
 		return false
 	end
-	dbg_method("home_song")
+	d.DebugFunction("home_song")
 	page_index = 1
 	transition_lyric_text(false)
+	d.DebugFunction("home_song", true)
 	return true
 end
 
@@ -370,20 +399,23 @@ end
 -- option exists to include the song Title and any linked Extra Sources
 ---------------------------------------------------------------------------------------------------------------------
 function toggle_lyrics_visibility(pressed)
-	dbg_method("toggle_lyrics_visibility")
+	d.DebugFunction("toggle_lyrics_visibility")
 	if not pressed then
+		d.DebugInner("not pressed")
+		d.DebugFunction("toggle_lyrics_visibility", true)
 		return
 	end
 	if link_text then
 		all_sources_fade = true
 	end
 	if text_status ~= TEXT_HIDDEN then
-		dbg_inner("hiding")
+		d.DebugInner("hiding")
 		set_text_visibility(TEXT_HIDDEN)
 	else
-		dbg_inner("showing")
+		d.DebugInner("showing")
 		set_text_visibility(TEXT_VISIBLE)
 	end
+	d.DebugFunction("toggle_lyrics_visibility", true)
 end
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -434,6 +466,7 @@ end
 -- If song is the one last prepared for viewing then update it (allows on-the-fly song edits)
 ---------------------------------------------------------------------------------------------------------------------
 function save_song_clicked(props, p)
+	d.DebugFunction("save_song_clicked")
 	local name = obs.obs_data_get_string(script_sets, "prop_edit_song_title")
 	local text = obs.obs_data_get_string(script_sets, "prop_edit_song_text")
 	-- if this is a new song, add it to the directory
@@ -447,6 +480,7 @@ function save_song_clicked(props, p)
 		prepare_song_by_name(name)
 		transition_lyric_text(false)
 	end
+	d.DebugFunction("save_song_clicked", true)
 	return true
 end
 
@@ -456,7 +490,7 @@ end
 -- clears display if last song in directory
 ---------------------------------------------------------------------------------------------------------------------
 function delete_song_clicked(props, p)
-	dbg_method("delete_song_clicked")
+	d.DebugFunction("delete_song_clicked")
 	-- call delete song function
 	local name = obs.obs_data_get_string(script_sets, "prop_directory_list")
 	delete_song(name)
@@ -490,9 +524,9 @@ function delete_song_clicked(props, p)
 				end
 			end
 			obs.obs_properties_apply_settings(props, script_sets)
-			return true
 		end
 	end
+	d.DebugFunction("delete_song_clicked", true)
 	return true
 end
 
@@ -502,7 +536,7 @@ end
 -----------------------------------------------------------------------------------------------------------------------
 
 function prepare_song_clicked(props, p)
-	dbg_method("prepare_song_clicked")
+	d.DebugFunction("prepare_song_clicked")
 	set_text_visibility(TEXT_HIDDEN)
 	prepared_songs[#prepared_songs + 1] = obs.obs_data_get_string(script_sets, "prop_directory_list")
 	prepared_index = 1
@@ -518,6 +552,7 @@ function prepare_song_clicked(props, p)
 	end
 	obs.obs_properties_apply_settings(props, script_sets)
 	save_prepared(script_sets)
+	d.DebugFunction("prepare_song_clicked", true)
 	return true
 end
 
@@ -526,7 +561,7 @@ end
 -- Prepares the selected song into text sources without adding it to the prepared list
 -------------------------------------------------------------------------------------------------------------------------
 function preview_clicked(props, p)
-	dbg_method("preview_song_clicked")
+	d.DebugFunction("preview_clicked")
 	if using_preview then
 		using_preview = false
 		if source_active then
@@ -535,17 +570,18 @@ function preview_clicked(props, p)
 			prepare_song_by_index(prepared_index)
 		end
 		transition_lyric_text()
-		return true
+	else
+		local song = obs.obs_data_get_string(script_sets, "prop_directory_list")
+		using_source = true
+		using_preview = true
+		all_sources_fade = true -- fade title and source the first time
+		set_text_visibility(TEXT_HIDE) -- if this is a transition turn it off so it can fade in
+		if song ~= last_prepared_song then -- skips prepare if song already prepared just to save some processing cycles
+			prepare_selected(song)
+		end
+		transition_lyric_text(true)
 	end
-	local song = obs.obs_data_get_string(script_sets, "prop_directory_list")
-	using_source = true
-	using_preview = true
-	all_sources_fade = true -- fade title and source the first time
-	set_text_visibility(TEXT_HIDE) -- if this is a transition turn it off so it can fade in
-	if song ~= last_prepared_song then -- skips prepare if song already prepared just to save some processing cycles
-		prepare_selected(song)
-	end
-	transition_lyric_text(true)
+	d.DebugFunction("preview_clicked", true)
 	return true
 end
 
@@ -555,9 +591,11 @@ end
 -- Selects the current song for possible addition to prepared list
 -------------------------------------------------------------------------------------------------------------------------
 function load_song_from_directory(props, prop, settings)
+	d.DebugFunction("load_song_from_directory")
 	local name = obs.obs_data_get_string(script_sets, "prop_directory_list")
 
 	if get_index_in_list(song_directory, name) == nil then
+		d.DebugFunction("load_song_from_directory", true)
 		return false
 	end -- do nothing if invalid name
 
@@ -574,6 +612,7 @@ function load_song_from_directory(props, prop, settings)
 	obs.obs_data_set_string(settings, "prop_edit_song_text", combined_text)
 	update_monitor()
 
+	d.DebugFunction("load_song_from_directory", true)
 	return true
 end
 
@@ -583,7 +622,7 @@ end
 -- Also refreshes the Directory of Songs
 -------------------------------------------------------------------------------------------------------------------------
 function refresh_button_clicked(props, p)
-dbg_method("Refresh Sources")
+	d.DebugFunction("refresh_button_clicked")
 	local source_prop = obs.obs_properties_get(props, "prop_source_list")
 	local alternate_source_prop = obs.obs_properties_get(props, "prop_alternate_list")
 	local static_source_prop = obs.obs_properties_get(props, "prop_static_list")
@@ -626,6 +665,7 @@ dbg_method("Refresh Sources")
 	obs.source_list_release(sources)
 	refresh_directory()
 
+	d.DebugFunction("refresh_button_clicked", true)
 	return true
 end
 
@@ -634,22 +674,25 @@ end
 -- Refreshes the Directory of Songs
 -------------------------------------------------------------------------------------------------------------------------
 function refresh_directory_button_clicked(props, p)
-	dbg_method("refresh directory")
+	d.DebugFunction("refresh_directory_button_clicked")
 	refresh_directory()
+	d.DebugFunction("refresh_directory_button_clicked", true)
 	return true
 end
 
 function refresh_directory()
+	d.DebugFunction("refresh_directory")
 	local prop_dir_list = obs.obs_properties_get(script_props, "prop_directory_list")
 	local source_prop = obs.obs_properties_get(props, "prop_source_list")
 	load_source_song_directory(use_meta_tags)
 	table.sort(song_directory)
 	obs.obs_property_list_clear(prop_dir_list) -- clear directories
 	for _, name in ipairs(song_directory) do
-		dbg_inner(name)
+		d.DebugInner(name)
 		obs.obs_property_list_add_string(prop_dir_list, name, name)
 	end
 	obs.obs_properties_apply_settings(script_props, script_sets)
+	d.DebugFunction("refresh_directory", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -659,12 +702,13 @@ end
 -------------------------------------------------------------------------------------------------------------------------
 
 function prepare_selection_made(props, prop, settings)
-	dbg_method("prepare_selection_made")
+	d.DebugFunction("prepare_selection_made")
 	local name = obs.obs_data_get_string(settings, "prop_prepared_list")
 	using_source = false
 	using_preview = false
 	prepare_selected(name)
-
+	
+	d.DebugFunction("prepare_selection_made", true)
 	return true
 end
 
@@ -674,7 +718,7 @@ end
 -- Removes all songs from the prepared list
 -------------------------------------------------------------------------------------------------------------------------
 function clear_prepared_clicked(props, p)
-	dbg_method("clear_prepared_clicked")
+	d.DebugFunction("clear_prepared_clicked")
 	prepared_songs = {} -- required for monitor page
 	page_index = 0 -- required for monitor page
 	prepared_index = 0 -- required for monitor page
@@ -696,6 +740,7 @@ function clear_prepared_clicked(props, p)
 		local mpb = obs.obs_properties_get(props, "prop_manage_button")
 		obs.obs_property_set_description(mpb, "Edit Prepared List")
 	end
+	d.DebugFunction("clear_prepared_clicked", true)
 	return true
 end
 
@@ -704,6 +749,7 @@ end
 -- Tries to open the selected song in the default OS text editor
 -------------------------------------------------------------------------------------------------------------------------
 function open_song_clicked(props, p)
+	d.DebugFunction("open_song_clicked")
 	local name = obs.obs_data_get_string(script_sets, "prop_directory_list")
 	if testValid(name) then
 		path = get_song_file_path(name, ".txt")
@@ -715,6 +761,7 @@ function open_song_clicked(props, p)
 	else
 		os.execute('xdg-open "' .. path .. '"')
 	end
+	d.DebugFunction("open_song_clicked", true)
 	return true
 end
 
@@ -723,12 +770,14 @@ end
 -- Opens the folder where song files are stored
 -------------------------------------------------------------------------------------------------------------------------
 function open_button_clicked(props, p)
+	d.DebugFunction("open_button_clicked")
 	local path = get_songs_folder_path()
 	if windows_os then
 		os.execute('explorer "' .. path .. '"')
 	else
 		os.execute('xdg-open "' .. path .. '"')
 	end
+	d.DebugFunction("open_button_clicked", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -736,8 +785,9 @@ end
 -- Reads the current source opacity levels
 -------------------------------------------------------------------------------------------------------------------------
 function read_source_opacity_clicked(props, p)
-	dbg_method("read_opacities_clicked")
+	d.DebugFunction("read_opacities_clicked")
 	read_source_opacity()
+	d.DebugFunction("read_opacities_clicked", true)
 	return true
 end
 
@@ -747,7 +797,7 @@ end
 -- Source must be text source, or have 'Color Correction' Filter applied
 ------------------------------------------------------------------------------------------------------------------------
 function link_source_selected(props, prop, settings)
-	dbg_method("link_source_selected")
+	d.DebugFunction("link_source_selected")
 	local extra_source = obs.obs_data_get_string(settings, "extra_source_list")
 	if extra_source ~= nil and extra_source ~= "" then
 		local extra_linked_list = obs.obs_properties_get(props, "extra_linked_list")
@@ -759,6 +809,7 @@ function link_source_selected(props, prop, settings)
 			"<font color=#FFD966>Linked Sources (" .. obs.obs_property_list_item_count(extra_linked_list) .. ")</font>"
 		)
 	end
+	d.DebugFunction("link_source_selected", true)
 	return true
 end
 
@@ -767,11 +818,12 @@ end
 -- Shows list to allow linking extra sources
 ------------------------------------------------------------------------------------------------------------------------
 function do_linked_clicked(props, p)
-	dbg_method("do_link_clicked")
+	d.DebugFunction("do_link_clicked")
 	obs.obs_property_set_visible(obs.obs_properties_get(props, "xtr_grp"), true)
 	obs.obs_property_set_visible(obs.obs_properties_get(props, "do_link_button"), false)
 	obs.obs_properties_apply_settings(props, script_sets)
 
+	d.DebugFunction("do_link_clicked", true)
 	return true
 end
 
@@ -780,14 +832,15 @@ end
 -- Removes all additionally linked Show/Hide sources and hides Link Options in UI
 ------------------------------------------------------------------------------------------------------------------------
 function clear_linked_clicked(props, p)
-	dbg_method("clear_linked_clicked")
+	d.DebugFunction("clear_linked_clicked")
 	local extra_linked_list = obs.obs_properties_get(props, "extra_linked_list")
 
 	obs.obs_property_list_clear(extra_linked_list)
 	obs.obs_property_set_visible(obs.obs_properties_get(props, "xtr_grp"), false)
 	obs.obs_property_set_visible(obs.obs_properties_get(props, "do_link_button"), true)
 	obs.obs_property_set_description(extra_linked_list, "<font color=#FFD966>Linked Sources</font>")
-
+	
+	d.DebugFunction("clear_linked_clicked", true)
 	return true
 end
 
@@ -804,6 +857,7 @@ end
 -- Function to Expand/Rollup all groups in the UI
 ------------------------------------------------------------------------------------------------------------------------
 function expand_all_groups(props, prop, settings)
+	d.DebugFunction("expand_all_groups")
 	expandcollapse = not expandcollapse
 	obs.obs_property_set_visible(obs.obs_properties_get(script_props, "info_grp"), expandcollapse)
 	obs.obs_property_set_visible(obs.obs_properties_get(script_props, "mng_grp"), expandcollapse)
@@ -829,6 +883,7 @@ function expand_all_groups(props, prop, settings)
 		mode1 .. "SOURCE TEXT SELECTIONS" .. mode2
 	)
 	obs.obs_property_set_description(obs.obs_properties_get(props, "ctrl_showing"), mode1 .. "LYRIC CONTROLS" .. mode2)
+	d.DebugFunction("expand_all_groups", true)
 	return true
 end
 
@@ -836,6 +891,7 @@ end
 -- Function tests to see of all Groups are expanded or contracted
 ------------------------------------------------------------------------------------------------------------------------
 function all_vis_equal(props)
+	d.DebugFunction("all_vis_equal")
 	if
 		(obs.obs_property_visible(obs.obs_properties_get(script_props, "info_grp")) and
 			obs.obs_property_visible(obs.obs_properties_get(script_props, "prep_grp")) and
@@ -855,11 +911,13 @@ function all_vis_equal(props)
 			mode1 .. "ALL GROUPS" .. mode2
 		)
 	end
+	d.DebugFunction("all_vis_equal", true)
 end
 -----------------------------------------------------------------------------------------------------------------------
 -- Change state of the INFO Group
 ------------------------------------------------------------------------------------------------------------------------
 function change_info_visible(props, prop, settings)
+	d.DebugFunction("change_info_visible")
 	local pp = obs.obs_properties_get(script_props, "info_grp")
 	local vis = not obs.obs_property_visible(pp)
 	obs.obs_property_set_visible(pp, vis)
@@ -869,12 +927,14 @@ function change_info_visible(props, prop, settings)
 		mode1 .. "SONG INFORMATION" .. mode2
 	)
 	all_vis_equal(props)
+	d.DebugFunction("change_info_visible", true)
 	return true
 end
 -----------------------------------------------------------------------------------------------------------------------
 -- Change state of the Prepared Group
 ------------------------------------------------------------------------------------------------------------------------
 function change_prepared_visible(props, prop, settings)
+	d.DebugFunction("change_prepared_visible")
 	local pp = obs.obs_properties_get(script_props, "mng_grp")
 	local vis = not obs.obs_property_visible(pp)
 	obs.obs_property_set_visible(pp, vis)
@@ -884,12 +944,14 @@ function change_prepared_visible(props, prop, settings)
 		mode1 .. "PREPARED SONGS" .. mode2
 	)
 	all_vis_equal(props)
+	d.DebugFunction("change_prepared_visible", true)
 	return true
 end
 -----------------------------------------------------------------------------------------------------------------------
 -- Change state of the Options Group
 ------------------------------------------------------------------------------------------------------------------------
 function change_options_visible(props, prop, settings)
+	d.DebugFunction("change_options_visible")
 	local pp = obs.obs_properties_get(script_props, "disp_grp")
 	local vis = not obs.obs_property_visible(pp)
 	obs.obs_property_set_visible(pp, vis)
@@ -899,12 +961,14 @@ function change_options_visible(props, prop, settings)
 		mode1 .. "DISPLAY OPTIONS" .. mode2
 	)
 	all_vis_equal(props)
+	d.DebugFunction("change_options_visible", true)
 	return true
 end
 -----------------------------------------------------------------------------------------------------------------------
 -- Change state of the Source Group
 ------------------------------------------------------------------------------------------------------------------------
 function change_src_visible(props, prop, settings)
+	d.DebugFunction("change_src_visible")
 	local pp = obs.obs_properties_get(script_props, "src_grp")
 	local vis = not obs.obs_property_visible(pp)
 	obs.obs_property_set_visible(pp, vis)
@@ -914,18 +978,21 @@ function change_src_visible(props, prop, settings)
 		mode1 .. "SOURCE TEXT SELECTIONS" .. mode2
 	)
 	all_vis_equal(props)
+	d.DebugFunction("change_src_visible", true)
 	return true
 end
 -----------------------------------------------------------------------------------------------------------------------
 -- Change state of the Control Group
 ------------------------------------------------------------------------------------------------------------------------
 function change_ctrl_visible(props, prop, settings)
+	d.DebugFunction("change_ctrl_visible")
 	local pp = obs.obs_properties_get(script_props, "ctrl_grp")
 	local vis = not obs.obs_property_visible(pp)
 	obs.obs_property_set_visible(pp, vis)
 	local mode1, mode2 = vMode(vis)
 	obs.obs_property_set_description(obs.obs_properties_get(props, "ctrl_showing"), mode1 .. "LYRIC CONTROLS" .. mode2)
 	all_vis_equal(props)
+	d.DebugFunction("change_ctrl_visible", true)
 	return true
 end
 -----------------------------------------------------------------------------------------------------------------------
@@ -933,6 +1000,7 @@ end
 -- Fading enables or disables a number of other options like 0-100% and if backgrounds are faded
 ------------------------------------------------------------------------------------------------------------------------
 function change_fade_property(props, prop, settings)
+	d.DebugFunction("change_fade_visible")
 	local text_fade_set = obs.obs_data_get_bool(settings, "text_fade_enabled")
 	obs.obs_property_set_visible(obs.obs_properties_get(props, "text_fade_speed"), text_fade_set)
 	obs.obs_property_set_visible(obs.obs_properties_get(props, "use100percent"), text_fade_set)
@@ -945,20 +1013,24 @@ function change_fade_property(props, prop, settings)
 	obs.obs_property_set_visible(obs.obs_properties_get(props, "refreshOP"), text_fade_enabled and not use100percent)
 	local transition_set_prop = obs.obs_properties_get(props, "transition_enabled")
 	obs.obs_property_set_enabled(transition_set_prop, not text_fade_set)
+	d.DebugFunction("change_fade_visible", true)
 	return true
 end
 -----------------------------------------------------------------------------------------------------------------------
 -- Change state of the 0-100% option
 -----------------------------------------------------------------------------------------------------------------------
 function change_100percent_property(props, prop, settings)
+	d.DebugFunction("change_100percent_property")
 	use100percent = obs.obs_data_get_bool(settings, "use100percent")
 	obs.obs_property_set_visible(obs.obs_properties_get(props, "refreshOP"), not use100percent)
+	d.DebugFunction("change_100percent_property", true)
 	return true
 end
 -----------------------------------------------------------------------------------------------------------------------
 -- Change background fading options
 -----------------------------------------------------------------------------------------------------------------------
 function change_back_fade_property(props, prop, settings)
+	d.DebugFunction("change_back_fade_property")
 	allow_back_fade = obs.obs_data_get_bool(settings, "allowBackFade")
 	if allow_back_fade then
 		obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_text_back"), text_fade_enabled)
@@ -973,13 +1045,14 @@ function change_back_fade_property(props, prop, settings)
 		obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_extra_back"), false)
 		obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_static_back"), false)
 	end
+	d.DebugFunction("change_back_fade_property", true)
 	return true
 end
 -----------------------------------------------------------------------------------------------------------------------
 -- Show/Hide the Help Button Text
 -----------------------------------------------------------------------------------------------------------------------
 function show_help_button(props, prop, settings)
-	dbg_method("show help")
+	d.DebugFunction("show_help_button")
 	local hb = obs.obs_properties_get(props, "show_help_button")
 	showhelp = not showhelp
 	if showhelp then
@@ -987,6 +1060,7 @@ function show_help_button(props, prop, settings)
 	else
 		obs.obs_property_set_description(hb, "SHOW MARKUP SYNTAX HELP")
 	end
+	d.DebugFunction("show_help_button", true)
 	return true
 end
 -----------------------------------------------------------------------------------------------------------------------
@@ -994,6 +1068,7 @@ end
 -----------------------------------------------------------------------------------------------------------------------
 
 function filter_songs_clicked(props, p)
+	d.DebugFunction("filter_songs_clicked")
 	local pp = obs.obs_properties_get(props, "meta")
 	if not obs.obs_property_visible(pp) then
 		obs.obs_property_set_visible(pp, true)
@@ -1008,17 +1083,20 @@ function filter_songs_clicked(props, p)
 		local mpb = obs.obs_properties_get(props, "filter_songs_button") --
 		obs.obs_property_set_description(mpb, "Filter Titles by Meta Tags") -- reset button function
 	end
+	d.DebugFunction("filter_songs_clicked", true)
 	return true
 end
 -----------------------------------------------------------------------------------------------------------------------
 -- Edit the prepared list by copying it into a Editable list where entries can be added/deleted or reordered
 -----------------------------------------------------------------------------------------------------------------------
 function edit_prepared_clicked(props, p)
+	d.DebugFunction("edit_prepared_clicked")
 	local pp = obs.obs_properties_get(props, "edit_grp")
 	if obs.obs_property_visible(pp) then
 		obs.obs_property_set_visible(pp, false)
 		local mpb = obs.obs_properties_get(props, "prop_manage_button")
 		obs.obs_property_set_description(mpb, "Edit Prepared List")
+		d.DebugFunction("edit_prepared_clicked", true)
 		return true
 	end
 	local prop_prep_list = obs.obs_properties_get(props, "prop_prepared_list")
@@ -1042,12 +1120,14 @@ function edit_prepared_clicked(props, p)
 	obs.obs_property_set_visible(pp, true)
 	local mpb = obs.obs_properties_get(props, "prop_manage_button")
 	obs.obs_property_set_description(mpb, "Cancel Prepared Edits")
+	d.DebugFunction("edit_prepared_clicked", true)
 	return true
 end
 -----------------------------------------------------------------------------------------------------------------------
 -- Save changes from the Editable List back to the Prepared List
 -----------------------------------------------------------------------------------------------------------------------
 function save_edits_clicked(props, p)
+	d.DebugFunction("save_edits_clicked")
 	load_source_song_directory(false)
 	prepared_songs = {}
 	local prop_prep_list = obs.obs_properties_get(props, "prop_prepared_list")
@@ -1081,17 +1161,20 @@ function save_edits_clicked(props, p)
 		obs.obs_property_set_description(prop_prep_list, "<font color=#FFD966>Prepared</font>")
 	end
 	obs.obs_properties_apply_settings(props, script_sets)
+	d.DebugFunction("save_edits_clicked", true)
 	return true
 end
 -----------------------------------------------------------------------------------------------------------------------
 -- Change transition options
 -----------------------------------------------------------------------------------------------------------------------
 function change_transition_property(props, prop, settings)
+	d.DebugFunction("change_transition_property")
 	transition_enabled = obs.obs_data_get_bool(settings, "transition_enabled")
 	local text_fade_set_prop = obs.obs_properties_get(props, "text_fade_enabled")
 	local fade_speed_prop = obs.obs_properties_get(props, "text_fade_speed")
 	obs.obs_property_set_enabled(text_fade_set_prop, not transition_enabled)
 	obs.obs_property_set_enabled(fade_speed_prop, not transition_enabled)
+	d.DebugFunction("change_transition_property", true)
 	return true
 end
 
@@ -1100,13 +1183,14 @@ end
 -- Reloads prepared files if storage option changes between settings and external file
 -----------------------------------------------------------------------------------------------------------------------
 function reLoadPrepared(props, prop, settings)
-dbg_method("reLoad Prepared")
+	d.DebugFunction("reLoadPrepared")
 	local newSaveExternal = obs.obs_data_get_bool(settings, "saveExternal")
 	if saveExternal ~= newSaveExternal then
 		save_prepared(settings)
 		saveExternal = obs.obs_data_get_bool(settings, "saveExternal")
 		load_prepared(settings)
 	end
+	d.DebugFunction("reLoadPrepared", true)
 	return true
 end
 
@@ -1121,7 +1205,7 @@ end
 -- Prepares the song with the provided name
 -------------------------------------------------------------------------------------------------------------------------
 function prepare_selected(name)
-	dbg_method("prepare_selected")
+	d.DebugFunction("prepare_selected")
 	-- try to prepare song
 	if prepare_song_by_name(name) then
 		page_index = 1
@@ -1140,18 +1224,20 @@ function prepare_selected(name)
 		all_sources_fade = true
 		set_text_visibility(TEXT_HIDE)
 	end
+	d.DebugFunction("prepare_selected", true)
 	return true
 end
 
 function sceneFindSceneItemBySourceNameRecursive(inScene, findSourceName)
-	dbg_method("findSceneBySource: " .. findSourceName)
+	d.DebugFunction("findSceneBySource")
+	d.DebugInner(findSourceName)
 	local returnValue = nil
 	local sceneItems = obs.obs_scene_enum_items(inScene)
 	
 	for _, tempSceneItem in ipairs(sceneItems) do
 		local sceneItemAsSource = obs.obs_sceneitem_get_source(tempSceneItem)
 		local sceneItemSourceName = obs.obs_source_get_name(sceneItemAsSource)
-		dbg_inner("tempSceneItem: " .. sceneItemSourceName)
+		d.DebugInner("tempSceneItem: " .. sceneItemSourceName)
 		
 		if sceneItemSourceName == findSourceName then
 			returnValue = tempSceneItem
@@ -1169,6 +1255,8 @@ function sceneFindSceneItemBySourceNameRecursive(inScene, findSourceName)
 	end
 	
 	obs.sceneitem_list_release(sceneItems)
+	
+	d.DebugFunction("findSceneBySource", true)
 	return returnValue
 
 end
@@ -1178,7 +1266,7 @@ end
 -- Working function to set source opacities in Settings
 -------------------------------------------------------------------------------------------------------------------------
 function setSourceOpacity(sourceName, fadeBackground)
-	dbg_method("set_Opacity")
+	d.DebugFunction("setSourceOpacity")
 	if sourceName ~= nil and sourceName ~= "" then
 		if text_fade_enabled then
 			local settings = obs.obs_data_create()
@@ -1205,7 +1293,7 @@ function setSourceOpacity(sourceName, fadeBackground)
 			obs.obs_source_release(source)
 			obs.obs_data_release(settings)
 		else
-			dbg_inner("use on/off")
+			d.DebugInner("use on/off")
 			--  do preview scene item
 			local sceneSource = obs.obs_frontend_get_current_scene()
 			local sceneObj = obs.obs_scene_from_source(sceneSource)
@@ -1220,6 +1308,7 @@ function setSourceOpacity(sourceName, fadeBackground)
 		end
 --		update_monitor()
 	end
+	d.DebugFunction("setSourceOpacity", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -1227,10 +1316,10 @@ end
 -- Uses SET SOURCE OPACITY to manage source opacities according to current options
 -------------------------------------------------------------------------------------------------------------------------
 function apply_source_opacity()
-dbg_method("Apply Opacity")
+	d.DebugFunction("apply_source_opacity")
 	setSourceOpacity(source_name, fade_text_back)
 	setSourceOpacity(alternate_source_name, fade_alternate_back)
-	dbg_inner("all_sources_fade: ", all_sources_fade)
+	d.DebugInner("all_sources_fade: ", all_sources_fade)
 	if all_sources_fade then
 	   setSourceOpacity(title_source_name, fade_title_back)
 	   setSourceOpacity(static_source_name, fade_static_back)
@@ -1275,6 +1364,7 @@ dbg_method("Apply Opacity")
 			end
 		end
 	end
+	d.DebugFunction("apply_source_opacity", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -1282,6 +1372,7 @@ end
 -- This function reads the current opacity levels in settings.
 -------------------------------------------------------------------------------------------------------------------------
 function getSourceOpacity(sourceName)
+	d.DebugFunction("getSourceOpacity")
 	if sourceName ~= nil and sourceName ~= "" then
 		local source = obs.obs_get_source_by_name(sourceName)
 		local settings = obs.obs_source_get_settings(source)
@@ -1293,6 +1384,7 @@ function getSourceOpacity(sourceName)
 		obs.obs_source_release(source)
 		obs.obs_data_release(settings)
 	end
+	d.DebugFunction("getSourceOpacity", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -1302,7 +1394,7 @@ end
 -- as the sources maximum opacity when fading sources out and back.
 -------------------------------------------------------------------------------------------------------------------------
 function read_source_opacity()
-	dbg_method("read_source_opacity")
+	d.DebugFunction("read_source_opacity")
 	getSourceOpacity(source_name)
 	getSourceOpacity(alternate_source_name)
 	getSourceOpacity(title_source_name)
@@ -1332,6 +1424,7 @@ function read_source_opacity()
 			obs.obs_source_release(extra_source) -- release source ptr
 		end
 	end
+	d.DebugFunction("read_source_opacity", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -1339,21 +1432,24 @@ end
 -- Manages visibility of the text sources from Hidden, through fading in or out, to Visible.
 -------------------------------------------------------------------------------------------------------------------------
 function set_text_visibility(end_status)
-	dbg_method("set_text_visibility")
+	d.DebugFunction("set_text_visibility")
 	-- if already at desired visibility, then exit
 	if text_status == end_status then
+		d.DebugFunction("set_text_visibility", true)
 		return
 	end
 	if end_status == TEXT_HIDE then
 		text_opacity = 0
 		text_status = TEXT_HIDDEN
 		apply_source_opacity()
+		d.DebugFunction("set_text_visibility", true)
 		return
 	elseif end_status == TEXT_SHOW then
 		text_opacity = 100
 		text_status = TEXT_VISIBLE
 		all_sources_fade = true -- prevent orphaned title/static if link is removed when hidden
 		apply_source_opacity()
+		d.DebugFunction("set_text_visibility", true)
 		return
 	end
 	if text_fade_enabled then
@@ -1377,8 +1473,10 @@ function set_text_visibility(end_status)
 		apply_source_opacity()
 		--update_source_text()
 		all_sources_fade = false
+		d.DebugFunction("set_text_visibility", true)
 		return
 	end
+	d.DebugFunction("set_text_visibility", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -1387,8 +1485,8 @@ end
 -- the new page (with or without fading).
 -------------------------------------------------------------------------------------------------------------------------
 function transition_lyric_text(force_show)
-	dbg_method("transition_lyric_text")
-	dbg_bool("force show", force_show)
+	d.DebugFunction("transition_lyric_text")
+	d.DebugBoolean("force show", force_show)
 	-- update the lyrics display immediately on 2 conditions
 	-- a) the text is hidden or hiding, and we will not force it to show
 	-- b) text fade is not enabled
@@ -1400,21 +1498,22 @@ function transition_lyric_text(force_show)
 		if text_status == TEXT_HIDDEN then
 			all_sources_fade = false
 		end
-		dbg_inner("hidden")
+		d.DebugInner("hidden")
 	elseif not text_fade_enabled then
-		dbg_custom("Instant On")
+		d.DebugCustom("Instant On")
 		-- if text fade is not enabled, then we can cancel the all_sources_fade
 		-- all_sources_fade = false
 		set_text_visibility(TEXT_HIDDEN) -- does update_source_text()
 		update_source_text()
 		set_text_visibility(TEXT_VISIBLE)
-		dbg_inner("no text fade")
+		d.DebugInner("no text fade")
 	else -- initiate fade out/in
-		dbg_custom("Transition Timer")
+		d.DebugCustom("Transition Timer")
 		text_status = TEXT_TRANSITION_OUT
 		start_fade_timer()
 	end
-	dbg_bool("using_source", using_source)
+	d.DebugBoolean("using_source", using_source)
+	d.DebugFunction("transition_lyric_text", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -1422,8 +1521,8 @@ end
 -- Changes the "text" value of the sources within settings
 -------------------------------------------------------------------------------------------------------------------------
 function update_source_text()
-	dbg_method("update_source_text")
-	dbg_custom("Page Index: " .. page_index)
+	d.DebugFunction("update_source_text")
+	d.DebugCustom("Page Index: " .. page_index)
 	local text = ""
 	local alttext = ""
 	local next_lyric = ""
@@ -1436,11 +1535,11 @@ function update_source_text()
 	else
 		if not using_source then
 			if prepared_index ~= nil and prepared_index ~= 0 then
-				dbg_custom("Update from prepared: " .. prepared_index)
+				d.DebugCustom("Update from prepared: " .. prepared_index)
 				title = prepared_songs[prepared_index]
 			end
 		else
-			dbg_custom("Updatefrom source: " .. source_song_title)
+			d.DebugCustom("Updatefrom source: " .. source_song_title)
 			title = source_song_title
 		end
 	end
@@ -1471,7 +1570,7 @@ function update_source_text()
 	end
 	-- update source texts
 	if source ~= nil then
-		dbg_inner("Title Load")
+		d.DebugInner("Title Load")
 		local settings = obs.obs_data_create()
 		obs.obs_data_set_string(settings, "text", text)
 		obs.obs_source_update(source, settings)
@@ -1537,6 +1636,7 @@ function update_source_text()
 	mon_nextsong = next_prepared
 
 	update_monitor()
+	d.DebugFunction("update_source_text", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -1545,8 +1645,9 @@ end
 -- causing the fade-in, fade-out effect.
 -------------------------------------------------------------------------------------------------------------------------
 function start_fade_timer()
-	dbgsp("started fade timer")
+	d.DebugFunction("start_fade_timer")
 	obs.timer_add(fade_callback, 50)
+	d.DebugFunction("start_fade_timer", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -1555,6 +1656,7 @@ end
 -- the callback timer when the target visibility is reached.
 -------------------------------------------------------------------------------------------------------------------------
 function fade_callback()
+	d.DebugFunction("fade_callback")
 	-- if not in a transitory state, exit callback
 	if text_status == TEXT_HIDDEN or text_status == TEXT_VISIBLE then
 		obs.remove_current_callback()
@@ -1591,6 +1693,7 @@ function fade_callback()
 	end
 	-- apply the new opacity
 	apply_source_opacity()
+	d.DebugFunction("fade_callback", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -1598,10 +1701,11 @@ end
 -- Prepares a song by its position in the prepared lyrics list
 -------------------------------------------------------------------------------------------------------------------------
 function prepare_song_by_index(index)
-	dbg_method("prepare_song_by_index")
+	d.DebugFunction("prepare_song_by_index")
 	if index <= #prepared_songs then
 		prepare_song_by_name(prepared_songs[index])
 	end
+	d.DebugFunction("prepare_song_by_index", true)
 end
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -1631,8 +1735,10 @@ end
 --	Optional comma delimited meta tags follow '//meta ' on 1st line"
 ---------------------------------------------------------------------------------------------------------------------
 function prepare_song_by_name(name)
-	dbg_method("prepare_song_by_name")
+	d.DebugFunction("prepare_song_by_name")
 	if name == nil then
+		d.DebugInner("name is nil")
+		d.DebugFunction("prepare_song_by_name", true)
 		return false
 	end
 	last_prepared_song = name
@@ -1642,6 +1748,8 @@ function prepare_song_by_name(name)
 	-- load song lines
 	local song_lines = get_song_text(name)
 	if song_lines == nil then
+		d.DebugInner("song_lines is nil")
+		d.DebugFunction("prepare_song_by_name", true)
 		return false
 	end
 	local cur_line = 1
@@ -1829,7 +1937,7 @@ function prepare_song_by_name(name)
 				line = line:sub(1, verse_index - 1)
 				new_lines = 0
 				verses[#verses + 1] = #lyrics
-				dbg_inner("Verse: " .. #lyrics)
+				d.DebugInner("Verse: " .. #lyrics)
 			end
 			if line ~= nil then
 				if use_static then  -- Text goes to Static Source
@@ -1953,6 +2061,7 @@ function prepare_song_by_name(name)
 		end
 	end
 	lyrics[#lyrics + 1] = ""  -- Add blank page at end of lyrics
+	d.DebugFunction("prepare_song_by_name", true)
 	return true
 end
 
@@ -1961,11 +2070,13 @@ end
 -- Finds a specifically named song in the prepared list
 ---------------------------------------------------------------------------------------------------------------------------
 function get_index_in_list(list, q_item)
+	d.DebugFunction("get_index_in_list")
 	for index, item in ipairs(list) do
 		if item == q_item then
 			return index
 		end
 	end
+	d.DebugFunction("get_index_in_list", true)
 	return nil
 end
 
@@ -1980,6 +2091,7 @@ end
 -- Removes a Song File from the OS file system
 -------------------------------------------------------------------------------------------------------------------------
 function delete_song(name)
+	d.DebugFunction("delete_song")
 	if testValid(name) then
 		path = get_song_file_path(name, ".txt")
 	else
@@ -1988,6 +2100,7 @@ function delete_song(name)
 	os.remove(path)  -- delete from OS
 	table.remove(song_directory, get_index_in_list(song_directory, name)) -- delete from table
 	load_source_song_directory(false)
+	d.DebugFunction("delete_song", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -1998,7 +2111,7 @@ end
 -- included in the directory table
 -------------------------------------------------------------------------------------------------------------------------
 function load_source_song_directory(use_filter)
-	dbg_method("load_source_song_directory")
+	d.DebugFunction("load_source_song_directory")
 	local keytext = meta_tags
 	if use_filter then
 		keytext = source_meta_tags
@@ -2062,6 +2175,7 @@ function load_source_song_directory(use_filter)
 		end
 	until not entry
 	obs.os_closedir(dir)
+	d.DebugFunction("load_source_song_directory")
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -2070,6 +2184,7 @@ end
 -------------------------------------------------------------------------------------------------------------------------
 
 function readTags(name)
+	d.DebugFunction("readTags")
 	local meta = ""
 	local path = {}
 	if testValid(name) then -- get the full file path
@@ -2090,6 +2205,7 @@ function readTags(name)
 		meta = meta:sub(meta_index + 6)
 		return ParseCSVLine(meta)
 	end
+	d.DebugFunction("readTags", true)
 	return {}
 end
 
@@ -2098,6 +2214,7 @@ end
 -- Converts a string with CSV values A, B, C into a table of values
 -------------------------------------------------------------------------------------------------------------------------
 function ParseCSVLine(line)
+	d.DebugFunction("ParseCSVLine")
 	local res = {}
 	local pos = 1
 	sep = ","
@@ -2118,7 +2235,7 @@ function ParseCSVLine(line)
 				end
 			until (c ~= '"')
 			txt = string.gsub(txt, "^%s*(.-)%s*$", "%1")
-			dbg_inner("CSV: " .. txt)
+			d.DebugInner("CSV: " .. txt)
 			table.insert(res, txt)
 			assert(c == sep or c == "")
 			pos = pos + 1
@@ -2127,18 +2244,19 @@ function ParseCSVLine(line)
 			if (startp) then
 				local t = string.sub(line, pos, startp - 1)
 				t = string.gsub(t, "^%s*(.-)%s*$", "%1")
-				dbg_inner("CSV: " .. t)
+				d.DebugInner("CSV: " .. t)
 				table.insert(res, t)
 				pos = endp + 1
 			else
 				local t = string.sub(line, pos)
 				t = string.gsub(t, "^%s*(.-)%s*$", "%1")
-				dbg_inner("CSV: " .. t)
+				d.DebugInner("CSV: " .. t)
 				table.insert(res, t)
 				break
 			end
 		end
 	end
+	d.DebugFunction("ParseCSVLine", true)
 	return res
 end
 
@@ -2214,12 +2332,16 @@ end
 -------------------------------------------------------------------------------------------------------------------------
 
 function testValid(filename)
+	d.DebugFunction("testValid")
 	if string.find(filename, "[\128-\255]") ~= nil then
+		d.DebugFunction("testValid", true)
 		return false
 	end
 	if string.find(filename, '[\\\\/:*?"<>|]') ~= nil then
+		d.DebugFunction("testValid", true)
 		return false
 	end
+	d.DebugFunction("testValid", true)
 	return true
 end
 
@@ -2229,6 +2351,7 @@ end
 -------------------------------------------------------------------------------------------------------------------------
 
 function save_song(name, text)
+	d.DebugFunction("save_song")
 	local path = {}
 	if testValid(name) then
 		path = get_song_file_path(name, ".txt")
@@ -2246,9 +2369,11 @@ function save_song(name, text)
 		file:close()
 		if get_index_in_list(song_directory, name) == nil then
 			song_directory[#song_directory + 1] = name
+			d.DebugFunction("save_song", true)
 			return true
 		end
 	end
+	d.DebugFunction("save_song", true)
 	return false
 end
 
@@ -2258,12 +2383,13 @@ end
 -------------------------------------------------------------------------------------------------------------------------
 
 function save_prepared()
-	dbg_method("save_prepared")
+	d.DebugFunction("save_prepared")
 	local file = io.open(get_songs_folder_path() .. "/" .. "Prepared.dat", "w")
 	for i, name in ipairs(prepared_songs) do
 		file:write(name, "\n")
 	end
 	file:close()
+	d.DebugFunction("save_prepared", true)
 	return true
 end
 
@@ -2272,6 +2398,7 @@ end
 -- really there when starting up.
 --
 function get_text()
+	d.DebugFunction("get_text")
 	local source = obs.obs_get_source_by_name(source_name)
 	if source ~= nil then
 		local settings = obs.obs_source_get_settings(source)
@@ -2299,6 +2426,7 @@ function get_text()
 		end
 	    obs.obs_source_release(title_source)
 	end
+	d.DebugFunction("get_text", true)
 end
 
 
@@ -2309,8 +2437,14 @@ end
 -- OBS as a browser option.  This function keeps that files HTML text updated.
 -------------------------------------------------------------------------------------------------------------------------
 function update_monitor()
-	dbg_method("update_monitor--skipped")
-	do return true end
+	d.DebugFunction("update_monitor")
+	
+	do
+		d.DebugInner("skipping update_monitor")
+		d.DebugFunction("update_monitor", true)
+		return true
+	end
+	
 	get_text()  -- read actual text in sources
 	local tableback = "black"
 	local text = ""
@@ -2419,9 +2553,10 @@ function update_monitor()
 	end
 	text = text .. "</table></body></html>"
 	local file = io.open(get_songs_folder_path() .. "/" .. "Monitor.htm", "w")
-	dbg_inner("write monitor file")
+	d.DebugInner("write monitor file")
 	file:write(text)
 	file:close()
+	d.DebugFunction("update_monitor", true)
 	return true
 end
 
@@ -2430,9 +2565,11 @@ end
 -- Working function that returns the full OS path of the given song name and suffix
 -------------------------------------------------------------------------------------------------------------------------
 function get_song_file_path(name, suffix)
+	d.DebugFunction("get_song_file_path")
 	if name == nil then
 		return nil
 	end
+	d.DebugFunction("get_song_file_path", true)
 	return get_songs_folder_path() .. "\\" .. name .. suffix
 end
 
@@ -2441,6 +2578,7 @@ end
 -- Working function that returns the full OS path of the Song Folder
 ------------------------------------------------------------------------------------------------------------------------
 function get_songs_folder_path()
+	d.DebugFunction("get_songs_folder_path")
 	local sep = package.config:sub(1, 1)
 	local path = ""
 	if windows_os then
@@ -2448,6 +2586,7 @@ function get_songs_folder_path()
 	else
 		path = os.getenv("HOME")
 	end
+	d.DebugFunction("get_songs_folder_path", true)
 	return path .. sep .. ".config" .. sep .. ".obs_lyrics"
 end
 
@@ -2456,6 +2595,7 @@ end
 -- Reads text of the specified song file into a songs_lines table
 ------------------------------------------------------------------------------------------------------------------------
 function get_song_text(name)
+	d.DebugFunction("get_song_text")
 	local song_lines = {}
 	local path = {}
 	if testValid(name) then -- get file path
@@ -2470,9 +2610,11 @@ function get_song_text(name)
 		end
 		file:close()  -- close file
 	else
+		d.DebugFunction("get_song_text", true)
 		return nil
 	end
 
+	d.DebugFunction("get_song_text", true)
 	return song_lines
 end
 
@@ -2486,6 +2628,8 @@ end
 -- can change for the entire script module.
 
 function script_description()
+	d.DebugFunction("script_description")
+	d.DebugFunction("script_description", true)
 	return description
 end
 
@@ -2494,7 +2638,7 @@ end
 -- OBS PROPERTIES FUNCTION (See OBS Documentation)
 ------------------------------------------------------------------------------------------------------------------------
 function script_properties()
-	dbg_method("script_properties")
+	d.DebugFunction("script_properties")
 	editVisSet = false
 	use_meta_tags = false
 	script_props = obs.obs_properties_create()
@@ -2764,6 +2908,7 @@ function script_properties()
 
 
 	read_source_opacity()
+	d.DebugFunction("script_properties", true)
 	return script_props
 end
 
@@ -2772,6 +2917,7 @@ end
 ------------------------------------------------------------------------------------------------------------------------
 -- script_update is called when settings are changed (Every KEYSTROKE Included)
 function script_update(settings)
+	d.DebugFunction("script_update")
 	text_fade_enabled = obs.obs_data_get_bool(settings, "text_fade_enabled")
 	text_fade_speed = obs.obs_data_get_int(settings, "text_fade_speed")
 	display_lines = obs.obs_data_get_int(settings, "prop_lines_counter")
@@ -2792,13 +2938,14 @@ function script_update(settings)
 	fade_extra_back = obs.obs_data_get_bool(settings, "fade_extra_back") and allow_back_fade
 	source_meta_tags = obs.obs_data_get_string(settings, "prop_edit_metatags")
 --	update_monitor()
+d.DebugFunction("script_update", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
 -- SCRIPT DEFAULTS Sets Default Values used by the UI  (See OBS Documentation)
 ------------------------------------------------------------------------------------------------------------------------
 function script_defaults(settings)
-	dbg_method("script_defaults")
+	d.DebugFunction("script_defaults")
 	obs.obs_data_set_default_int(settings, "prop_lines_counter", 2)
 	obs.obs_data_set_default_string(settings, "hotkey-title", "Button Function\t\tAssigned Hotkey Sequence")
 	obs.obs_data_set_default_bool(settings,"use100percent", true)
@@ -2813,19 +2960,23 @@ function script_defaults(settings)
 	else
 		os.execute('mkdir -p "' .. get_songs_folder_path() .. '"')
 	end
+	d.DebugFunction("script_defaults", true)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
 -- Working function to return if a source is Valid to be included as extra (excludes non-visible sources like Audio)
 ------------------------------------------------------------------------------------------------------------------------
 function isValid(source)
+	d.DebugFunction("isValid")
 	if source ~= nil then
 		local flags = obs.obs_source_get_output_flags(source)
 		local targetFlag = bit.bor(obs.OBS_SOURCE_VIDEO, obs.OBS_SOURCE_CUSTOM_DRAW)
 		if bit.band(flags, targetFlag) == targetFlag then
+			d.DebugFunction("isValid", true)
 			return true
 		end
 	end
+	d.DebugFunction("isValid", true)
 	return false
 end
 
@@ -2833,7 +2984,7 @@ end
 -- This is a FILE function to read prepared songs from an external file, but also a SETTINGS retrieval function
 -----------------------------------------------------------------------------------------------------------------------
 function load_prepared(settings)
-dbg_method("Load Prepared")
+	d.DebugFunction("Load Prepared")
 	prepared_songs = {}
 	if saveExternal then -- loads prepared songs from prepared.dat file
 		-- load prepared songs from stored file
@@ -2863,29 +3014,32 @@ dbg_method("Load Prepared")
 	if #prepared_songs > 0 then
 	   prepared_index = 1
 	end
+	d.DebugFunction("Load Prepared", true)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
 -- This is a FILE function to write prepared songs from an external file, but also a SETTINGS storage function
 -----------------------------------------------------------------------------------------------------------------------
 function save_prepared(settings)
-		if saveExternal then -- saves preprepared songs in prepared.dat file
-			local file = io.open(get_songs_folder_path() .. "/" .. "Prepared.dat", "w")
-			for i, name in ipairs(prepared_songs) do
-				file:write(name, "\n")
-			end
-			file:close()
-		else  -- saves prepared songs in settings array
-			local prepared_songs_array = obs.obs_data_array_create()
-			for i, song_name in ipairs(prepared_songs) do
-				local array_obj = obs.obs_data_create()
-				obs.obs_data_set_string(array_obj, "value", song_name)
-				obs.obs_data_array_push_back(prepared_songs_array, array_obj)
-				obs.obs_data_release(array_obj)
-			end
-			obs.obs_data_set_array(settings, "prepared_songs_list", prepared_songs_array)
-			obs.obs_data_array_release(prepared_songs_array)
+	d.DebugFunction("save_prepared")
+	if saveExternal then -- saves preprepared songs in prepared.dat file
+		local file = io.open(get_songs_folder_path() .. "/" .. "Prepared.dat", "w")
+		for i, name in ipairs(prepared_songs) do
+			file:write(name, "\n")
 		end
+		file:close()
+	else  -- saves prepared songs in settings array
+		local prepared_songs_array = obs.obs_data_array_create()
+		for i, song_name in ipairs(prepared_songs) do
+			local array_obj = obs.obs_data_create()
+			obs.obs_data_set_string(array_obj, "value", song_name)
+			obs.obs_data_array_push_back(prepared_songs_array, array_obj)
+			obs.obs_data_release(array_obj)
+		end
+		obs.obs_data_set_array(settings, "prepared_songs_list", prepared_songs_array)
+		obs.obs_data_array_release(prepared_songs_array)
+	end
+	d.DebugFunction("save_prepared", true)
 end
 
 
@@ -2893,7 +3047,7 @@ end
 -- Save Script Settings (See OBS Documentation)
 -----------------------------------------------------------------------------------------------------------------------
 function script_save(settings)
-	dbg_method("script_save")
+	d.DebugFunction("script_save")
 	save_prepared()
 	local hotkey_save_array = obs.obs_hotkey_save(hotkey_n_id)
 	obs.obs_data_set_array(settings, "lyric_next_hotkey", hotkey_save_array)
@@ -2933,7 +3087,7 @@ function script_save(settings)
 	
 	local extra_sources_array = obs.obs_data_array_create()
 	local extra_linked_list = obs.obs_properties_get(script_props, "extra_linked_list")
-	dbg_method("script_save2")
+	d.DebugFunction("script_save2")
 	local count = obs.obs_property_list_item_count(extra_linked_list)
 	for i = 0, count - 1 do
 		local source_name = obs.obs_property_list_item_string(extra_linked_list, i) -- get extra source by name
@@ -2946,6 +3100,7 @@ function script_save(settings)
 	obs.obs_data_array_release(extra_sources_array)
 	]]
 	save_prepared(settings)
+	d.DebugFunction("script_save", true)
 end
 
 
@@ -2953,7 +3108,7 @@ end
 -- Load Script Settings (See OBS Documentation)
 -----------------------------------------------------------------------------------------------------------------------
 function script_load(settings)
-	dbg_method("script_load")
+	d.DebugFunction("script_load")
 	hotkey_n_id = obs.obs_hotkey_register_frontend("lyric_next_hotkey", "Advance Lyrics", next_lyric)
 	hotkey_save_array = obs.obs_data_get_array(settings, "lyric_next_hotkey")
 	hotkey_n_key = get_hotkeys(hotkey_save_array, "Next Lyric", ".......................")
@@ -3025,6 +3180,7 @@ function script_load(settings)
 	load_prepared(settings)
 	script_update(settings)
 	obs.obs_frontend_add_event_callback(on_event) -- Setup Callback for event capture
+	d.DebugFunction("script_load", true)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -3042,22 +3198,26 @@ end
 ---
 -- Function returns true if SourceName is Showing anywhere in Preview or Active
 function isShowing(sourceName)
+	d.DebugFunction("isShowing")
 	local source = obs.obs_get_source_by_name(sourceName)
 	local showing = false
 	if source ~= nil then
 		showing = obs.obs_source_showing(source)
 	end
 	obs.obs_source_release(source)
+	d.DebugFunction("isShowing", true)
 	return showing
 end
 -- Function returns true if SourceName is visible in the Active Window
 function isActive(sourceName)
+	d.DebugFunction("isActive")
 	local source = obs.obs_get_source_by_name(sourceName)
 	local active = false
 	if source ~= nil then
 		active = obs.obs_source_active(source)
 	end
 	obs.obs_source_release(source)
+	d.DebugFunction("isActive", true)
 	return active
 end
 -- Function returns true if ANY of the sources are showing in OBS
@@ -3210,6 +3370,7 @@ end
 -- Function renames source to a unique descriptive name and marks duplicate sources with * and Color change
 --
 function rename_source()
+	d.DebugFunction("rename_source")
 
 	if not rename_sources then
 		return
@@ -3286,6 +3447,7 @@ function rename_source()
 	end
 	obs.source_list_release(sources)
 	-- pause_timer = false
+	d.DebugFunction("rename_source", true)
 end
 
 -- Names the initial "Prepare Lyric" source (prior to being renamed to "Load Lyrics for: {song name}
@@ -3302,38 +3464,42 @@ source_def.save = function(data, settings)
 	if saved then
 		return
 	end --  we only need it once, not for every load lyric source copy
-	dbg_method("Source_save")
+	d.DebugFunction("Source_save")
 	saved = true
 	using_source = true
 	rename_source() -- Rename and Mark sources instantly on update (WZ)
+	d.DebugFunction("Source_save", true)
 end
 
 -- Called when a change is made in the source dialog (Currently Not Used)
 --
 source_def.update = function(data, settings)
-	dbg_method("update")
+	d.DebugFunction("update")
+	d.DebugFunction("update", true)
 end
 
 -- Called when the source dialog is loaded (Currently not Used)
 --
 source_def.load = function(data)
-	dbg_method("load")
+	d.DebugFunction("load")
+	d.DebugFunction("load", true)
 end
 
 -- Called when the refresh button is pressed in the source dialog
 -- It reloads the song directory and applies any meta-tag filters if entered
 --
 function source_refresh_button_clicked(props, p)
-	dbg_method("source_refresh_button")
-	dbg_inner("tags: " .. source_meta_tags)
+	d.DebugFunction("source_refresh_button")
+	d.DebugInner("tags: " .. source_meta_tags)
 	load_source_song_directory(true)
 	table.sort(song_directory)
 	local prop_dir_list = obs.obs_properties_get(props, "songs")
 	obs.obs_property_list_clear(prop_dir_list) -- clear directories
 	for _, name in ipairs(song_directory) do
-		dbg_inner("SLD: " .. name)
+		d.DebugInner("SLD: " .. name)
 		obs.obs_property_list_add_string(prop_dir_list, name, name)
 	end
+	d.DebugFunction("source_refresh_button", true)
 	return true
 end
 
@@ -3341,7 +3507,9 @@ end
 -- Note: This could be done only when refreshing the directory (see source_refresh_button_clicked)
 --
 function update_source_metatags(props, p, settings)
+	d.DebugFunction("update_source_metatags")
 	source_meta_tags = obs.obs_data_get_string(settings, "metatags")
+	d.DebugFunction("update_source_metatags", true)
 	return true
 end
 
@@ -3350,17 +3518,19 @@ end
 -- Saved flag is cleared to mark changes have occured for save event
 --
 function source_selection_made(props, prop, settings)
-	dbg_method("source_selection")
+	d.DebugFunction("source_selection")
 	local name = obs.obs_data_get_string(settings, "songs")
 	using_source = true
 	prepare_selected(name)
 	saved = false -- mark properties changed	
+	d.DebugFunction("source_selection", true)
 	return true
 end
 
 -- Standard OBS get Properties function for OBS source dialog
 --
 source_def.get_properties = function(data)
+	d.DebugFunction("source_def.get_properties")
 	load_source_song_directory(false)
 	local source_props = obs.obs_properties_create()
 	local source_dir_list =
@@ -3385,7 +3555,8 @@ source_def.get_properties = function(data)
 	obs.obs_properties_add_bool(gps, "source_activate_in_preview", "Activate song in Preview mode") -- Option to load new lyric in preview mode
 	obs.obs_properties_add_bool(gps, "source_home_on_active", "Go to lyrics home on source activation") -- Option to home new lyric in preview mode
 	obs.obs_properties_add_group(source_props, "source_options", "Load Options", obs.OBS_GROUP_NORMAL, gps)
-	dbg_inner("props")
+	d.DebugInner("props")
+	d.DebugFunction("source_def.get_properties", true)
 	return source_props
 end
 
@@ -3394,14 +3565,14 @@ end
 -- Sets callbacks for active, showing, deactive, and updated callbacks
 --
 source_def.create = function(settings, source)
-	dbg_method("create")
+	d.DebugFunction("source_def.create")
 	data = {}
 	source_sets = settings
 	obs.signal_handler_connect(obs.obs_source_get_signal_handler(source), "activate", source_isactive) -- Set Active Callback
 	obs.signal_handler_connect(obs.obs_source_get_signal_handler(source), "show", source_showing) -- Set Preview Callback
 	obs.signal_handler_connect(obs.obs_source_get_signal_handler(source), "deactivate", source_inactive) -- Set Preview Callback
 	obs.signal_handler_connect(obs.obs_source_get_signal_handler(source), "updated", source_update) -- Set Preview Callback
-	dbg_method("create2")
+	d.DebugFunction("source_def.create", true)
 	return data
 end
 
@@ -3421,33 +3592,39 @@ end
 -- Called via the timed callback, removes the callback and updates the HTML monitor page
 --
 function update_source_callback()
+	d.DebugFunction("update_source_callback")
 	obs.remove_current_callback()
 	update_monitor()
+	d.DebugFunction("update_source_callback", true)
 end
 
 -- called via the timed callback, removes the callback and renames all the load sources
 --
 function rename_callback()
+	d.DebugFunction("rename_callback")
 	obs.remove_current_callback()
 	rename_source()
+	d.DebugFunction("rename_callback", true)
 end
 
 -- on_event setup when source load, detects when a scenes content changes or when the scene list changes, ignores other events
 function on_event(event)
+	d.DebugFunction("on_event")
 	if event == obs.OBS_FRONTEND_EVENT_SCENE_CHANGED then -- scene changed so update HTML monitor page
-		dbg_bool("Active:", source_active)
+		d.DebugBoolean("Active:", source_active)
 		obs.timer_add(update_source_callback, 100) -- delay updating source text until all sources have been removed by OBS
 	end
 	if event == obs.OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED then -- scene list is different so rename sources to reflect changes
-		dbg_inner("Scene Change")
+		d.DebugInner("Scene Change")
 		obs.timer_add(rename_callback, 1000) -- delay until OBS has completed list change
 	end
+	d.DebugFunction("on_event", true)
 end
 
 -- Load Source Song takes song selection made in source properties and prepares it on the fly during scene load.
 --
 function load_source_song(source, preview)
-	dbgsp("load_source_song")
+	d.DebugFunction("load_source_song")
 	local settings = obs.obs_source_get_settings(source)
 	if not preview or (preview and obs.obs_data_get_bool(settings, "source_activate_in_preview")) then
 		local song = obs.obs_data_get_string(settings, "songs")
@@ -3466,16 +3643,18 @@ function load_source_song(source, preview)
 		end
 	end
 	obs.obs_data_release(settings)
+	d.DebugFunction("load_source_song", true)
 end
 
 
 -- Utility function to retrieve the name of the current scene for use in Monitor
 
 function get_current_scene_name()
-	dbg_method("get_current_scene_name")
+	d.DebugFunction("get_current_scene_name")
 	local scene = obs.obs_frontend_get_current_scene()
 	local current_scene = obs.obs_source_get_name(scene)
 	obs.obs_source_release(scene)
+	d.DebugFunction("get_current_scene_name", true)
 	if current_scene ~= nil then
 		return current_scene
 	else
@@ -3488,88 +3667,42 @@ end
 -- loads the selected song and sets the current scene name for the HTML monitor
 --
 function source_isactive(cd)
-	dbg_custom("source_active")
+	d.DebugFunction("source_active")
 	local source = obs.calldata_source(cd, "source")
 	if source == nil then
 		return
 	end
-	dbg_inner("source active")
+	d.DebugInner("source active")
 	load_scene = get_current_scene_name()
 	load_source_song(source, false)
 	source_active = true -- using source lyric
+	d.DebugFunction("source_active", true)
 end
 
 -- Call back when load source leaves the current Active Scene
 -- just resets the source_active flag
 --
 function source_inactive(cd)
-	dbg_inner("source inactive")
+	d.DebugFunction("source_inactive")
 	local source = obs.calldata_source(cd, "source")
 	if source == nil then
 		return
 	end
 	source_active = false -- indicates source loading lyric is active (but using prepared lyrics is still possible)
+	d.DebugFunction("source_inactive", true)
 end
 
 -- Call back when load source (not text source) goes to the Active
 -- loads the selected song and sets the current scene name for the HTML monitor
 --
 function source_showing(cd)
-	dbg_custom("source_showing")
+	d.DebugFunction("source_showing")
 	local source = obs.calldata_source(cd, "source")
 	if source == nil then
 		return
 	end
 	load_source_song(source, true)
-end
-
--- dbg functions
---
-function dbg_traceback()
-	if DEBUG then
-		print("Trace: " .. debug.traceback())
-	end
-end
-
-function dbg(message)
-	if DEBUG then
-		print(message)
-	end
-end
-
-function dbg_inner(message)
-	if DEBUG_INNER then
-		dbg("INNR: " .. message)
-	end
-end
-
-function dbg_method(message)
-	if DEBUG_METHODS then
-		dbg("-- MTHD: " .. message)
-	end
-end
-
-function dbgsp(message)
-	if DEBUG then
-		dbg("====SPECIAL=====================>> " .. message)
-	end
-end
-function dbg_custom(message)
-	if DEBUG_CUSTOM then
-		dbg("CUST: " .. message)
-	end
-end
-
-function dbg_bool(name, value)
-	if DEBUG_BOOL then
-		local message = "BOOL: " .. name
-		if value then
-			message = message .. " = true"
-		else
-			message = message .. " = false"
-		end
-		dbg(message)
-	end
+	d.DebugFunction("source_showing", true)
 end
 
 obs.obs_register_source(source_def)
