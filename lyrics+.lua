@@ -44,6 +44,33 @@
 -- intent of that text might be to the user.
 
 
+--[[  NOTES ON BRANCH
+
+	This is part of a larger effort to try to	reduce the pauses that seem to happen from time to time with the script.
+	
+	This branch is to remove the custom text fading from the script.  I do not see the use of creating custom
+	fading in a script, when we have show and hide transitions to us natively in OBS.  The current plan
+	is to make use of duplicate sources that show and hide to perform the fading, but to begin with I 
+	am looking at simply cutting out much of the existing text fading code.
+	
+	The following is a simple list of functions that will likely be affected, simply based on a cursory look
+	at the function names, and may not be complete or accurate of the final picture.
+
+		Things likely not needed
+			function setSourceOpacity(sourceName, fadeBackground)
+			function apply_source_opacity()
+			function getSourceOpacity(sourceName)
+			function read_source_opacity()
+			function start_fade_timer()
+			function fade_callback()
+		
+		Things likely to be adjusted
+			function set_text_visibility(end_status)
+			function transition_lyric_text(force_show)
+			function update_source_text()
+	
+--]]
+
 local obs = obslua
 local bit = require("bit")
 local d = require("OBSDebugger.debugger")
