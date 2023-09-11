@@ -62,12 +62,22 @@
 			function getSourceOpacity(sourceName)
 			function read_source_opacity()
 			function start_fade_timer()
-			function fade_callback()
 		
 		Things likely to be adjusted
 			function set_text_visibility(end_status)
 			function transition_lyric_text(force_show)
 			function update_source_text()
+			function toggle_lyrics_visibility
+			
+			
+		Things removed
+			function start_fade_timer()
+			
+		Things adjusted
+			function setSourceOpacity(sourceName, fadeBackground)
+			function fade_callback() -- kept for timebeing, as it may be useful in reimplementation. Will remove if not.
+			function set_text_visibility(end_status)
+			function transition_lyric_text(force_show)
 	
 --]]
 
@@ -1293,33 +1303,12 @@ end
 -- Working function to set source opacities in Settings
 -------------------------------------------------------------------------------------------------------------------------
 function setSourceOpacity(sourceName, fadeBackground)
+	-- only called from apply_source_opacity
 	d.DebugFunction("setSourceOpacity")
 	if sourceName ~= nil and sourceName ~= "" then
-		if text_fade_enabled then
-			local settings = obs.obs_data_create()
-			if use100percent then -- try to honor preset maximum opacities
-				obs.obs_data_set_int(settings, "opacity", text_opacity)  -- Set new text opacity to zero
-				obs.obs_data_set_int(settings, "outline_opacity", text_opacity)  -- Set new text outline opacity to zero
-				obs.obs_data_set_int(settings, "gradient_opacity", text_opacity) -- Set new gradient opacity
-				if fadeBackground then
-					obs.obs_data_set_int(settings, "bk_opacity", text_opacity) -- Set new background opacity
-				end
-			else
-				adj_text_opacity = text_opacity /100
-				obs.obs_data_set_int(settings, "opacity", adj_text_opacity * max_opacity[sourceName]["opacity"]) -- Set new text opacity to zero
-				obs.obs_data_set_int(settings, "outline_opacity", adj_text_opacity * max_opacity[sourceName]["outline"]) -- Set new text outline opacity to zero
-				obs.obs_data_set_int(settings, "gradient_opacity", adj_text_opacity * max_opacity[sourceName]["gradient"]) -- Set new gradient opacity
-				if fadeBackground then
-					obs.obs_data_set_int(settings, "bk_opacity", adj_text_opacity * max_opacity[sourceName]["background"]) -- Set new background opacity
-				end
-			end
-			local source = obs.obs_get_source_by_name(sourceName)
-			if source ~= nil then
-				obs.obs_source_update(source, settings)
-			end
-			obs.obs_source_release(source)
-			obs.obs_data_release(settings)
-		else
+		--if text_fade_enabled then
+			
+		--else
 			d.DebugInner("use on/off")
 			--  do preview scene item
 			local sceneSource = obs.obs_frontend_get_current_scene()
@@ -1334,7 +1323,7 @@ function setSourceOpacity(sourceName, fadeBackground)
 			obs.obs_source_release(sceneSource)
 		end
 --		update_monitor()
-	end
+	--end
 	d.DebugFunction("setSourceOpacity", true)
 end
 
@@ -1343,6 +1332,7 @@ end
 -- Uses SET SOURCE OPACITY to manage source opacities according to current options
 -------------------------------------------------------------------------------------------------------------------------
 function apply_source_opacity()
+	-- called from set_text_visibility
 	d.DebugFunction("apply_source_opacity")
 	setSourceOpacity(source_name, fade_text_back)
 	setSourceOpacity(alternate_source_name, fade_alternate_back)
@@ -1362,28 +1352,15 @@ function apply_source_opacity()
 					source_id = obs.obs_source_get_unversioned_id(extra_source)
 					if source_id == "text_gdiplus" or source_id == "text_ft2_source" then -- just another text object
 						setSourceOpacity(sourceName, fade_extra_back)
-					else -- check for filter named "Color Correction"
-						local color_filter = obs.obs_source_get_filter_by_name(extra_source, "Color Correction")
-						if color_filter ~= nil and text_fade_enabled then -- update filters opacity
-							local filter_settings = obs.obs_data_create()
-							if use100percent then
-								obs.obs_data_set_double(filter_settings, "opacity", text_opacity/100)
-							else
-								obs.obs_data_set_double(filter_settings, "opacity", (text_opacity/100) * max_opacity[sourceName]["CC-opacity"])
-							end
-							obs.obs_source_update(color_filter, filter_settings)
-							obs.obs_data_release(filter_settings)
-							obs.obs_source_release(color_filter)
-						else -- try to just change visibility in the scene
-							local sceneSource = obs.obs_frontend_get_current_preview_scene()
-							local sceneObj = obs.obs_scene_from_source(sceneSource)
-							local sceneItem = obs.obs_scene_find_source_recursive(sceneObj, sourceName)
-							obs.obs_source_release(sceneSource)
-							if text_opacity > 50 then
-								obs.obs_sceneitem_set_visible(sceneItem, true)
-							else
-								obs.obs_sceneitem_set_visible(sceneItem, false)
-							end
+					else -- try to just change visibility in the scene
+						local sceneSource = obs.obs_frontend_get_current_preview_scene()
+						local sceneObj = obs.obs_scene_from_source(sceneSource)
+						local sceneItem = obs.obs_scene_find_source_recursive(sceneObj, sourceName)
+						obs.obs_source_release(sceneSource)
+						if text_opacity > 50 then
+							obs.obs_sceneitem_set_visible(sceneItem, true)
+						else
+							obs.obs_sceneitem_set_visible(sceneItem, false)
 						end
 					end
 				end
@@ -1399,6 +1376,7 @@ end
 -- This function reads the current opacity levels in settings.
 -------------------------------------------------------------------------------------------------------------------------
 function getSourceOpacity(sourceName)
+	-- Only called from read_source_opacity
 	d.DebugFunction("getSourceOpacity")
 	if sourceName ~= nil and sourceName ~= "" then
 		local source = obs.obs_get_source_by_name(sourceName)
@@ -1459,6 +1437,7 @@ end
 -- Manages visibility of the text sources from Hidden, through fading in or out, to Visible.
 -------------------------------------------------------------------------------------------------------------------------
 function set_text_visibility(end_status)
+	-- Called by transition_lyric_text, load_source_song, toggle_lyrics_visibility, prepare_song_clicked, preview_clicked, prepare_selected, apply_source_opacity
 	d.DebugFunction("set_text_visibility")
 	-- if already at desired visibility, then exit
 	if text_status == end_status then
@@ -1479,16 +1458,9 @@ function set_text_visibility(end_status)
 		d.DebugFunction("set_text_visibility", true)
 		return
 	end
-	if text_fade_enabled then
-		-- if fade enabled, begin fade in or out
-		if end_status == TEXT_HIDDEN then
-			text_status = TEXT_HIDING
-		elseif end_status == TEXT_VISIBLE then
-			text_status = TEXT_SHOWING
-		end
-		--all_sources_fade = true
-		start_fade_timer()
-	else -- change visibility immediately (fade or no fade)
+	--if text_fade_enabled then
+		
+	--else -- change visibility immediately (fade or no fade)
 		if end_status == TEXT_HIDDEN then
 			text_opacity = 0
 			text_status = end_status
@@ -1502,7 +1474,7 @@ function set_text_visibility(end_status)
 		all_sources_fade = false
 		d.DebugFunction("set_text_visibility", true)
 		return
-	end
+	--end
 	d.DebugFunction("set_text_visibility", true)
 end
 
@@ -1512,6 +1484,7 @@ end
 -- the new page (with or without fading).
 -------------------------------------------------------------------------------------------------------------------------
 function transition_lyric_text(force_show)
+	-- Called by load_source_song, next_lyric, prev_lyric, transition_lyric_text, save_song_clicked, preview_clicked, clear_prepared_clicked, prepare_selected, set_text_visibility
 	d.DebugFunction("transition_lyric_text")
 	d.DebugBoolean("force show", force_show)
 	-- update the lyrics display immediately on 2 conditions
@@ -1526,18 +1499,16 @@ function transition_lyric_text(force_show)
 			all_sources_fade = false
 		end
 		d.DebugInner("hidden")
-	elseif not text_fade_enabled then
+	else--if not text_fade_enabled then
 		d.DebugCustom("Instant On")
 		-- if text fade is not enabled, then we can cancel the all_sources_fade
-		-- all_sources_fade = false
+		all_sources_fade = false
 		set_text_visibility(TEXT_HIDDEN) -- does update_source_text()
-		update_source_text()
+		-- update_source_text()
 		set_text_visibility(TEXT_VISIBLE)
 		d.DebugInner("no text fade")
-	else -- initiate fade out/in
-		d.DebugCustom("Transition Timer")
-		text_status = TEXT_TRANSITION_OUT
-		start_fade_timer()
+	--else -- initiate fade out/in
+
 	end
 	d.DebugBoolean("using_source", using_source)
 	d.DebugFunction("transition_lyric_text", true)
@@ -1548,6 +1519,7 @@ end
 -- Changes the "text" value of the sources within settings
 -------------------------------------------------------------------------------------------------------------------------
 function update_source_text()
+	-- Called by set_text_visibility, transition_lyric_text
 	d.DebugFunction("update_source_text")
 	d.DebugCustom("Page Index: " .. page_index)
 	local text = ""
@@ -1667,59 +1639,11 @@ function update_source_text()
 end
 
 -------------------------------------------------------------------------------------------------------------------------
--- START FADE TIMER
--- Starts a 50ms callback to "fade_callback" function to allow text opacities to gradually change up or down
--- causing the fade-in, fade-out effect.
--------------------------------------------------------------------------------------------------------------------------
-function start_fade_timer()
-	d.DebugFunction("start_fade_timer")
-	obs.timer_add(fade_callback, 50)
-	d.DebugFunction("start_fade_timer", true)
-end
-
--------------------------------------------------------------------------------------------------------------------------
 -- FADE CALLBACK
--- Gradually increments or decrements target source object opacities towards the target visibility state, stopping
--- the callback timer when the target visibility is reached.
+-- Leaving this stub, as it might be useful during reimplementation.  Will remove if not useful.
 -------------------------------------------------------------------------------------------------------------------------
 function fade_callback()
 	d.DebugFunction("fade_callback")
-	-- if not in a transitory state, exit callback
-	if text_status == TEXT_HIDDEN or text_status == TEXT_VISIBLE then
-		obs.remove_current_callback()
-		all_sources_fade = false
-	end
-	-- the amount we want to change opacity by
-	local opacity_delta = 1 + text_fade_speed
-	-- change opacity in the direction of transitory state
-	if text_status == TEXT_HIDING or text_status == TEXT_TRANSITION_OUT then
-		local new_opacity = text_opacity - opacity_delta
-		if new_opacity > 0 then
-			text_opacity = new_opacity
-		else
-			-- completed fade out, determine next move
-			text_opacity = 0
-			if text_status == TEXT_TRANSITION_OUT then
-				-- update to new lyric between fades
-				update_source_text()
-				-- begin transition back in
-				text_status = TEXT_TRANSITION_IN
-			else
-				text_status = TEXT_HIDDEN
-			end
-		end
-	elseif text_status == TEXT_SHOWING or text_status == TEXT_TRANSITION_IN then
-		local new_opacity = text_opacity + opacity_delta
-		if new_opacity < 100 then
-			text_opacity = new_opacity
-		else
-			-- completed fade in
-			text_opacity = 100
-			text_status = TEXT_VISIBLE
-		end
-	end
-	-- apply the new opacity
-	apply_source_opacity()
 	d.DebugFunction("fade_callback", true)
 end
 
