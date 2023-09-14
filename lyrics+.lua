@@ -61,9 +61,6 @@
 			function getSourceOpacity(sourceName)
 			function read_source_opacity()
 			function start_fade_timer()
-			all_sources_fade - not sure why this even really needs to exist.  I do not really know when you wouldn't 
-												 want to fade when everything else is fading.  There are very few spots in the code
-												 where this is false.  Likely to remove and just always fade all sources.
 		
 		Things likely to be adjusted
 			function set_text_visibility(end_status)
@@ -75,6 +72,7 @@
 		Things removed
 			function start_fade_timer()
 			function apply_source_opacity() -- collapsed into set_text_visibility
+			all_sources_fade
 			
 		Things adjusted
 			function setSourceOpacity(sourceName, fadeBackground)
@@ -193,7 +191,6 @@ TEXT_SHOW = 8 -- turn on the text and ignore fade if selected
 
 -- GENERAL TEXT FADING
 text_fade_enabled = false  	-- fading effect enabled (if false then source visibility is toggled rather than opacity changed)
-all_sources_fade = false 	-- Title and Static fade when lyrics are changing or during show/hide
 text_status = TEXT_VISIBLE  -- current state of desired source visibility, one of above states VISIBLE thru SHOW
 text_opacity = 100 			-- used to fade text in/out
 text_fade_speed = 5			-- speed used to fade text
@@ -445,9 +442,6 @@ function toggle_lyrics_visibility(pressed)
 		d.DebugFunction("toggle_lyrics_visibility", true)
 		return
 	end
-	if link_text then
-		all_sources_fade = true
-	end
 	if text_status ~= TEXT_HIDDEN then
 		d.DebugInner("hiding")
 		set_text_visibility(TEXT_HIDDEN)
@@ -614,7 +608,6 @@ function preview_clicked(props, p)
 		local song = obs.obs_data_get_string(script_sets, "prop_directory_list")
 		using_source = true
 		using_preview = true
-		all_sources_fade = true -- fade title and source the first time
 		set_text_visibility(TEXT_HIDE) -- if this is a transition turn it off so it can fade in
 		if song ~= last_prepared_song then -- skips prepare if song already prepared just to save some processing cycles
 			prepare_selected(song)
@@ -1253,7 +1246,6 @@ function prepare_selected(name)
 			prepared_index = get_index_in_list(prepared_songs, name)
 		else
 			source_song_title = name
-			all_sources_fade = true
 		end
 
 		transition_lyric_text(using_source)
@@ -1261,7 +1253,6 @@ function prepare_selected(name)
 		-- hide everything if unable to prepare song
 		-- Read current text in sources so monitor is correct
 		get_text()
-		all_sources_fade = true
 		set_text_visibility(TEXT_HIDE)
 	end
 	d.DebugFunction("prepare_selected", true)
@@ -1412,42 +1403,34 @@ function set_text_visibility(end_status)
 	elseif end_status == TEXT_SHOW or end_status == TEXT_VISIBLE then
 		text_opacity = 100
 		text_status = TEXT_VISIBLE
-		all_sources_fade = true -- prevent orphaned title/static if link is removed when hidden
 	end
 
 	setSourceOpacity(source_name, fade_text_back)
 	setSourceOpacity(alternate_source_name, fade_alternate_back)
-	d.DebugInner("all_sources_fade: ", all_sources_fade)
-	if all_sources_fade then
-	   setSourceOpacity(title_source_name, fade_title_back)
-	   setSourceOpacity(static_source_name, fade_static_back)
-	end
-	if link_extras or all_sources_fade then
-		local extra_linked_list = obs.obs_properties_get(script_props, "extra_linked_list")
-		local count = obs.obs_property_list_item_count(extra_linked_list)
-		if count > 0 then
-			for i = 0, count - 1 do
-				local sourceName = obs.obs_property_list_item_string(extra_linked_list, i) -- get extra source by name
-				local extra_source = obs.obs_get_source_by_name(sourceName)
-				if extra_source ~= nil then
-					source_id = obs.obs_source_get_unversioned_id(extra_source)
-					local sceneSource = obs.obs_frontend_get_current_preview_scene()
-					local sceneObj = obs.obs_scene_from_source(sceneSource)
-					local sceneItem = obs.obs_scene_find_source_recursive(sceneObj, sourceName)
-					obs.obs_source_release(sceneSource)
-					if text_opacity > 50 then
-						obs.obs_sceneitem_set_visible(sceneItem, true)
-					else
-						obs.obs_sceneitem_set_visible(sceneItem, false)
-					end
+	setSourceOpacity(title_source_name, fade_title_back)
+	setSourceOpacity(static_source_name, fade_static_back)
+	
+	local extra_linked_list = obs.obs_properties_get(script_props, "extra_linked_list")
+	local count = obs.obs_property_list_item_count(extra_linked_list)
+	if count > 0 then
+		for i = 0, count - 1 do
+			local sourceName = obs.obs_property_list_item_string(extra_linked_list, i) -- get extra source by name
+			local extra_source = obs.obs_get_source_by_name(sourceName)
+			if extra_source ~= nil then
+				source_id = obs.obs_source_get_unversioned_id(extra_source)
+				local sceneSource = obs.obs_frontend_get_current_preview_scene()
+				local sceneObj = obs.obs_scene_from_source(sceneSource)
+				local sceneItem = obs.obs_scene_find_source_recursive(sceneObj, sourceName)
+				obs.obs_source_release(sceneSource)
+				if text_opacity > 50 then
+					obs.obs_sceneitem_set_visible(sceneItem, true)
+				else
+					obs.obs_sceneitem_set_visible(sceneItem, false)
 				end
-				obs.obs_source_release(extra_source) -- release source ptr
 			end
+			obs.obs_source_release(extra_source) -- release source ptr
 		end
 	end
-	
-	
-	all_sources_fade = false
 	d.DebugFunction("set_text_visibility", true)
 	return
 end
@@ -1468,15 +1451,9 @@ function transition_lyric_text(force_show)
 	-- fade out transition is complete
 	if (text_status == TEXT_HIDDEN or text_status == TEXT_HIDING) and not force_show then
 		update_source_text()
-		-- if text is done hiding, we can cancel the all_sources_fade
-		if text_status == TEXT_HIDDEN then
-			all_sources_fade = false
-		end
 		d.DebugInner("hidden")
 	else--if not text_fade_enabled then
 		d.DebugCustom("Instant On")
-		-- if text fade is not enabled, then we can cancel the all_sources_fade
-		all_sources_fade = false
 		set_text_visibility(TEXT_HIDDEN)
 		update_source_text()
 		set_text_visibility(TEXT_VISIBLE)
@@ -3556,7 +3533,6 @@ function load_source_song(source, preview)
 		using_source = true
 		using_preview = false
 		load_source = source
-		all_sources_fade = true -- fade title and source the first time
 		set_text_visibility(TEXT_HIDE) -- if this is a transition turn it off so it can fade in
 		if song ~= last_prepared_song then -- skips prepare if song already prepared just to save some processing cycles
 			prepare_selected(song)
