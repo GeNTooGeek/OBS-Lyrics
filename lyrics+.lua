@@ -57,7 +57,10 @@
 	at the function names, and may not be complete or accurate of the final picture.
 
 		Things likely not needed
-			function setSourceOpacity(sourceName, fadeBackground)
+			function setSourceOpacity(sourceName, fadeBackground) - Will be removed along with text_opacity.  setSourceOpacity no longer adds
+																															relevant logic, but uses text_opacity.
+			text_opacity - This value is no longer needed since we are not tracking the change in opacity.
+			text_fade_speed - We will not be controlling the fade speed in script.
 			function getSourceOpacity(sourceName)
 			function read_source_opacity()
 			function start_fade_timer()
