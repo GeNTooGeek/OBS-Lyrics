@@ -58,10 +58,12 @@
 
 		Things likely not needed
 			function setSourceOpacity(sourceName, fadeBackground)
-			function apply_source_opacity()
 			function getSourceOpacity(sourceName)
 			function read_source_opacity()
 			function start_fade_timer()
+			all_sources_fade - not sure why this even really needs to exist.  I do not really know when you wouldn't 
+												 want to fade when everything else is fading.  There are very few spots in the code
+												 where this is false.  Likely to remove and just always fade all sources.
 		
 		Things likely to be adjusted
 			function set_text_visibility(end_status)
@@ -72,6 +74,7 @@
 			
 		Things removed
 			function start_fade_timer()
+			function apply_source_opacity() -- collapsed into set_text_visibility
 			
 		Things adjusted
 			function setSourceOpacity(sourceName, fadeBackground)
@@ -1328,50 +1331,6 @@ function setSourceOpacity(sourceName, fadeBackground)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
--- APPLY SOURCE OPACITY
--- Uses SET SOURCE OPACITY to manage source opacities according to current options
--------------------------------------------------------------------------------------------------------------------------
-function apply_source_opacity()
-	-- called from set_text_visibility
-	d.DebugFunction("apply_source_opacity")
-	setSourceOpacity(source_name, fade_text_back)
-	setSourceOpacity(alternate_source_name, fade_alternate_back)
-	d.DebugInner("all_sources_fade: ", all_sources_fade)
-	if all_sources_fade then
-	   setSourceOpacity(title_source_name, fade_title_back)
-	   setSourceOpacity(static_source_name, fade_static_back)
-	end
-	if link_extras or all_sources_fade then
-		local extra_linked_list = obs.obs_properties_get(script_props, "extra_linked_list")
-		local count = obs.obs_property_list_item_count(extra_linked_list)
-		if count > 0 then
-			for i = 0, count - 1 do
-				local sourceName = obs.obs_property_list_item_string(extra_linked_list, i) -- get extra source by name
-				local extra_source = obs.obs_get_source_by_name(sourceName)
-				if extra_source ~= nil then
-					source_id = obs.obs_source_get_unversioned_id(extra_source)
-					if source_id == "text_gdiplus" or source_id == "text_ft2_source" then -- just another text object
-						setSourceOpacity(sourceName, fade_extra_back)
-					else -- try to just change visibility in the scene
-						local sceneSource = obs.obs_frontend_get_current_preview_scene()
-						local sceneObj = obs.obs_scene_from_source(sceneSource)
-						local sceneItem = obs.obs_scene_find_source_recursive(sceneObj, sourceName)
-						obs.obs_source_release(sceneSource)
-						if text_opacity > 50 then
-							obs.obs_sceneitem_set_visible(sceneItem, true)
-						else
-							obs.obs_sceneitem_set_visible(sceneItem, false)
-						end
-					end
-				end
-				obs.obs_source_release(extra_source) -- release source ptr
-			end
-		end
-	end
-	d.DebugFunction("apply_source_opacity", true)
-end
-
--------------------------------------------------------------------------------------------------------------------------
 -- GET SOURCE OPACITY (working function)
 -- This function reads the current opacity levels in settings.
 -------------------------------------------------------------------------------------------------------------------------
@@ -1399,6 +1358,7 @@ end
 -- as the sources maximum opacity when fading sources out and back.
 -------------------------------------------------------------------------------------------------------------------------
 function read_source_opacity()
+	-- Called by script_properties, read_source_opacity_clicked
 	d.DebugFunction("read_source_opacity")
 	getSourceOpacity(source_name)
 	getSourceOpacity(alternate_source_name)
@@ -1439,43 +1399,57 @@ end
 function set_text_visibility(end_status)
 	-- Called by transition_lyric_text, load_source_song, toggle_lyrics_visibility, prepare_song_clicked, preview_clicked, prepare_selected, apply_source_opacity
 	d.DebugFunction("set_text_visibility")
+	
 	-- if already at desired visibility, then exit
 	if text_status == end_status then
 		d.DebugFunction("set_text_visibility", true)
 		return
 	end
-	if end_status == TEXT_HIDE then
+	
+	if end_status == TEXT_HIDE or end_status == TEXT_HIDDEN then
 		text_opacity = 0
 		text_status = TEXT_HIDDEN
-		apply_source_opacity()
-		d.DebugFunction("set_text_visibility", true)
-		return
-	elseif end_status == TEXT_SHOW then
+	elseif end_status == TEXT_SHOW or end_status == TEXT_VISIBLE then
 		text_opacity = 100
 		text_status = TEXT_VISIBLE
 		all_sources_fade = true -- prevent orphaned title/static if link is removed when hidden
-		apply_source_opacity()
-		d.DebugFunction("set_text_visibility", true)
-		return
 	end
-	--if text_fade_enabled then
-		
-	--else -- change visibility immediately (fade or no fade)
-		if end_status == TEXT_HIDDEN then
-			text_opacity = 0
-			text_status = end_status
-		elseif end_status == TEXT_VISIBLE then
-			text_opacity = 100
-			text_status = end_status
-			all_sources_fade = true -- prevent orphaned title/static if link is removed when hidden
+
+	setSourceOpacity(source_name, fade_text_back)
+	setSourceOpacity(alternate_source_name, fade_alternate_back)
+	d.DebugInner("all_sources_fade: ", all_sources_fade)
+	if all_sources_fade then
+	   setSourceOpacity(title_source_name, fade_title_back)
+	   setSourceOpacity(static_source_name, fade_static_back)
+	end
+	if link_extras or all_sources_fade then
+		local extra_linked_list = obs.obs_properties_get(script_props, "extra_linked_list")
+		local count = obs.obs_property_list_item_count(extra_linked_list)
+		if count > 0 then
+			for i = 0, count - 1 do
+				local sourceName = obs.obs_property_list_item_string(extra_linked_list, i) -- get extra source by name
+				local extra_source = obs.obs_get_source_by_name(sourceName)
+				if extra_source ~= nil then
+					source_id = obs.obs_source_get_unversioned_id(extra_source)
+					local sceneSource = obs.obs_frontend_get_current_preview_scene()
+					local sceneObj = obs.obs_scene_from_source(sceneSource)
+					local sceneItem = obs.obs_scene_find_source_recursive(sceneObj, sourceName)
+					obs.obs_source_release(sceneSource)
+					if text_opacity > 50 then
+						obs.obs_sceneitem_set_visible(sceneItem, true)
+					else
+						obs.obs_sceneitem_set_visible(sceneItem, false)
+					end
+				end
+				obs.obs_source_release(extra_source) -- release source ptr
+			end
 		end
-		apply_source_opacity()
-		--update_source_text()
-		all_sources_fade = false
-		d.DebugFunction("set_text_visibility", true)
-		return
-	--end
+	end
+	
+	
+	all_sources_fade = false
 	d.DebugFunction("set_text_visibility", true)
+	return
 end
 
 -------------------------------------------------------------------------------------------------------------------------
@@ -1503,8 +1477,8 @@ function transition_lyric_text(force_show)
 		d.DebugCustom("Instant On")
 		-- if text fade is not enabled, then we can cancel the all_sources_fade
 		all_sources_fade = false
-		set_text_visibility(TEXT_HIDDEN) -- does update_source_text()
-		-- update_source_text()
+		set_text_visibility(TEXT_HIDDEN)
+		update_source_text()
 		set_text_visibility(TEXT_VISIBLE)
 		d.DebugInner("no text fade")
 	--else -- initiate fade out/in
@@ -1519,7 +1493,7 @@ end
 -- Changes the "text" value of the sources within settings
 -------------------------------------------------------------------------------------------------------------------------
 function update_source_text()
-	-- Called by set_text_visibility, transition_lyric_text
+	-- Called by transition_lyric_text
 	d.DebugFunction("update_source_text")
 	d.DebugCustom("Page Index: " .. page_index)
 	local text = ""
