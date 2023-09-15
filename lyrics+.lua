@@ -57,13 +57,6 @@
 	at the function names, and may not be complete or accurate of the final picture.
 
 		Things likely not needed
-			function setSourceOpacity(sourceName, fadeBackground) - Will be removed along with text_opacity.  setSourceOpacity no longer adds
-																															relevant logic, but uses text_opacity.
-			text_opacity - This value is no longer needed since we are not tracking the change in opacity.
-			text_fade_speed - We will not be controlling the fade speed in script.
-			function getSourceOpacity(sourceName)
-			function read_source_opacity()
-			function start_fade_timer()
 		
 		Things likely to be adjusted
 			function set_text_visibility(end_status)
@@ -76,6 +69,19 @@
 			function start_fade_timer()
 			function apply_source_opacity() -- collapsed into set_text_visibility
 			all_sources_fade
+			function setSourceOpacity(sourceName, fadeBackground) - Will be removed along with text_opacity.  setSourceOpacity no longer adds
+																															relevant logic, but uses text_opacity.
+			text_opacity - This value is no longer needed since we are not tracking the change in opacity.
+			text_fade_speed - We will not be controlling the fade speed in script.
+			use100percent
+			refreshOP
+			read_source_opacity_clicked
+			read_source_opacity
+			getSourceOpacity
+			change_100percent_property
+			fade_speed_prop
+			max_opacity
+			allow_back_fade
 			
 		Things adjusted
 			function setSourceOpacity(sourceName, fadeBackground)
@@ -122,7 +128,6 @@ prepared_index = 1 		-- TODO: avoid setting prepared_index directly, use prepare
 song_directory = {}		-- holds list of current songs from song directory TODO: Multiple Song Books (Directories)
 prepared_songs = {} 	-- holds pre-prepared list of songs to use
 extra_sources = {} 		-- holder for extra sources settings
-max_opacity = {}  		-- record maximum opacity settings for sources
 loadLyric_items = {}
 
 link_text = false 		-- true if Title and Static should fade with text only during hide/show
@@ -194,18 +199,7 @@ TEXT_SHOW = 8 -- turn on the text and ignore fade if selected
 
 -- GENERAL TEXT FADING
 text_fade_enabled = false  	-- fading effect enabled (if false then source visibility is toggled rather than opacity changed)
-text_status = TEXT_VISIBLE  -- current state of desired source visibility, one of above states VISIBLE thru SHOW
-text_opacity = 100 			-- used to fade text in/out
-text_fade_speed = 5			-- speed used to fade text
-
--- FLAGS TO CONTROL BACKGROUND FADING
-allow_back_fade = false  	-- overall fading is performed for text source background colors
-use100percent = true 		--  Fading is 0-100% of opacity or 0 to Marked opacity
-fade_text_back = false 		-- Text Background should fade
-fade_title_back = false		-- Title Background should fade
-fade_alternate_back = false	-- Alternate Lyric Background should fade
-fade_static_back = false	-- Static Text Background should fade
-fade_extra_back = false		-- Extra Linked Source Background should fade (if text source)
+text_status = TEXT_HIDDEN  -- current state of desired source visibility, one of above states VISIBLE thru SHOW
 
 --[[ transitions are a work in progress to support duplicate source mode (not very stable)
 in this mode OBS keeps separate sources in preview and active windows. Only pointers to the preview window are
@@ -238,14 +232,14 @@ help =
 
 d.DEBUG = true -- on switch for entire debugging mechanism
 d.DEBUG_ALL = false
-d.DEBUG_FUNCTION = true -- print method names
+d.DEBUG_FUNCTION = false -- print method names
 d.DEBUG_TRACE = false -- 
 d.DEBUG_INNER = false -- print inner method breakpoints
 d.DEBUG_CUSTOM = false -- print custom debugging messages
 d.DEBUG_BOOL = false -- print message with bool state true/false
 d.DEBUG_TABLE = false
 
---d.FunctionsToDebug("source_active")
+--d.FunctionsToDebug("next_lyric")
 
 --------
 ----------------
@@ -259,6 +253,7 @@ d.DEBUG_TABLE = false
 -- Manages adding a transition for duplicated sources mode if checked
 ---------------------------------------------------------------------------------------------------------------------
 function next_lyric(pressed)
+	d.DEBUG_ALL = true
 	d.DebugFunction("next_lyric")
 	if not pressed then
 		d.DebugInner("not pressed")
@@ -268,6 +263,7 @@ function next_lyric(pressed)
 	
 	-- check if transition enabled
 	if transition_enabled and not transition_completed then
+		d.DebugInner("Transition Enabled")
 		obs.obs_frontend_preview_program_trigger_transition()
 		transition_completed = true
 		d.DebugFunction("next_lyric", true)
@@ -284,6 +280,7 @@ function next_lyric(pressed)
 		end
 	end
 	d.DebugFunction("next_lyric", true)
+	d.DEBUG_ALL = false
 end
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -483,6 +480,7 @@ function reset_button_clicked(props, p)
 	home_prepared(true)
 	return true
 end
+
 function prev_prepared_clicked(props, p)
 	prev_prepared(true)
 	return true
@@ -816,17 +814,6 @@ function open_button_clicked(props, p)
 	d.DebugFunction("open_button_clicked", true)
 end
 
--------------------------------------------------------------------------------------------------------------------------
--- READ SOURCE OPACITIES
--- Reads the current source opacity levels
--------------------------------------------------------------------------------------------------------------------------
-function read_source_opacity_clicked(props, p)
-	d.DebugFunction("read_opacities_clicked")
-	read_source_opacity()
-	d.DebugFunction("read_opacities_clicked", true)
-	return true
-end
-
 
 --------------------------------------------------------------------------------------------------------------------------
 -- Callback to add an extra linked source to the linked sources list.
@@ -1038,53 +1025,12 @@ end
 function change_fade_property(props, prop, settings)
 	d.DebugFunction("change_fade_visible")
 	local text_fade_set = obs.obs_data_get_bool(settings, "text_fade_enabled")
-	obs.obs_property_set_visible(obs.obs_properties_get(props, "text_fade_speed"), text_fade_set)
-	obs.obs_property_set_visible(obs.obs_properties_get(props, "use100percent"), text_fade_set)
-	obs.obs_property_set_visible(obs.obs_properties_get(props, "allowBackFade"), text_fade_set)
-	obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_text_back"), text_fade_set and allow_back_fade)
-	obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_alternate_back"), text_fade_set and allow_back_fade)
-	obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_title_back"), text_fade_set and allow_back_fade)
-	obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_extra_back"), text_fade_set and allow_back_fade)
-	obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_static_back"), text_fade_set and allow_back_fade)
-	obs.obs_property_set_visible(obs.obs_properties_get(props, "refreshOP"), text_fade_enabled and not use100percent)
 	local transition_set_prop = obs.obs_properties_get(props, "transition_enabled")
 	obs.obs_property_set_enabled(transition_set_prop, not text_fade_set)
 	d.DebugFunction("change_fade_visible", true)
 	return true
 end
------------------------------------------------------------------------------------------------------------------------
--- Change state of the 0-100% option
------------------------------------------------------------------------------------------------------------------------
-function change_100percent_property(props, prop, settings)
-	d.DebugFunction("change_100percent_property")
-	use100percent = obs.obs_data_get_bool(settings, "use100percent")
-	obs.obs_property_set_visible(obs.obs_properties_get(props, "refreshOP"), not use100percent)
-	d.DebugFunction("change_100percent_property", true)
-	return true
-end
------------------------------------------------------------------------------------------------------------------------
--- Change background fading options
------------------------------------------------------------------------------------------------------------------------
-function change_back_fade_property(props, prop, settings)
-	d.DebugFunction("change_back_fade_property")
-	allow_back_fade = obs.obs_data_get_bool(settings, "allowBackFade")
-	if allow_back_fade then
-		obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_text_back"), text_fade_enabled)
-		obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_alternate_back"), text_fade_enabled)
-		obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_title_back"), text_fade_enabled)
-		obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_extra_back"), text_fade_enabled)
-		obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_static_back"), text_fade_enabled)
-	else
-		obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_text_back"), false)
-		obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_alternate_back"), false)
-		obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_title_back"), false)
-		obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_extra_back"), false)
-		obs.obs_property_set_visible(obs.obs_properties_get(props, "fade_static_back"), false)
-	end
-	d.DebugFunction("change_back_fade_property", true)
-	return true
-end
------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
 -- Show/Hide the Help Button Text
 -----------------------------------------------------------------------------------------------------------------------
 function show_help_button(props, prop, settings)
@@ -1207,9 +1153,7 @@ function change_transition_property(props, prop, settings)
 	d.DebugFunction("change_transition_property")
 	transition_enabled = obs.obs_data_get_bool(settings, "transition_enabled")
 	local text_fade_set_prop = obs.obs_properties_get(props, "text_fade_enabled")
-	local fade_speed_prop = obs.obs_properties_get(props, "text_fade_speed")
 	obs.obs_property_set_enabled(text_fade_set_prop, not transition_enabled)
-	obs.obs_property_set_enabled(fade_speed_prop, not transition_enabled)
 	d.DebugFunction("change_transition_property", true)
 	return true
 end
@@ -1296,97 +1240,6 @@ function sceneFindSceneItemBySourceNameRecursive(inScene, findSourceName)
 end
 
 -------------------------------------------------------------------------------------------------------------------------
--- SET SOURCE OPACITY
--- Working function to set source opacities in Settings
--------------------------------------------------------------------------------------------------------------------------
-function setSourceOpacity(sourceName, fadeBackground)
-	-- only called from apply_source_opacity
-	d.DebugFunction("setSourceOpacity")
-	if sourceName ~= nil and sourceName ~= "" then
-		--if text_fade_enabled then
-			
-		--else
-			d.DebugInner("use on/off")
-			--  do preview scene item
-			local sceneSource = obs.obs_frontend_get_current_scene()
-			local sceneObj = obs.obs_scene_from_source(sceneSource)
-			local sceneItem = sceneFindSceneItemBySourceNameRecursive(sceneObj, sourceName)
-			
-			if text_opacity > 50 then
-				obs.obs_sceneitem_set_visible(sceneItem, true)
-			else
-				obs.obs_sceneitem_set_visible(sceneItem, false)
-			end
-			obs.obs_source_release(sceneSource)
-		end
---		update_monitor()
-	--end
-	d.DebugFunction("setSourceOpacity", true)
-end
-
--------------------------------------------------------------------------------------------------------------------------
--- GET SOURCE OPACITY (working function)
--- This function reads the current opacity levels in settings.
--------------------------------------------------------------------------------------------------------------------------
-function getSourceOpacity(sourceName)
-	-- Only called from read_source_opacity
-	d.DebugFunction("getSourceOpacity")
-	if sourceName ~= nil and sourceName ~= "" then
-		local source = obs.obs_get_source_by_name(sourceName)
-		local settings = obs.obs_source_get_settings(source)
-		max_opacity[sourceName]={}
-		max_opacity[sourceName]["opacity"] = obs.obs_data_get_int(settings, "opacity") -- text opacity
-		max_opacity[sourceName]["outline"] = obs.obs_data_get_int(settings, "outline_opacity") -- outline opacity
-	    max_opacity[sourceName]["gradient"] = obs.obs_data_get_int(settings, "gradient_opacity") --  gradient opacity
-		max_opacity[sourceName]["background"] = obs.obs_data_get_int(settings, "bk_opacity") -- background opacity
-		obs.obs_source_release(source)
-		obs.obs_data_release(settings)
-	end
-	d.DebugFunction("getSourceOpacity", true)
-end
-
--------------------------------------------------------------------------------------------------------------------------
--- READ SOURCE OPACITY
--- Lyrics tries to honor maximum opacities that might have been set for effects.  If 0-100% is disabled then Lyrics
--- Will try to mark current maximum opacity levels of sources using getSourceOpacity and use that number
--- as the sources maximum opacity when fading sources out and back.
--------------------------------------------------------------------------------------------------------------------------
-function read_source_opacity()
-	-- Called by script_properties, read_source_opacity_clicked
-	d.DebugFunction("read_source_opacity")
-	getSourceOpacity(source_name)
-	getSourceOpacity(alternate_source_name)
-	getSourceOpacity(title_source_name)
-	getSourceOpacity(static_source_name)
-	local extra_linked_list = obs.obs_properties_get(script_props, "extra_linked_list")
-	local count = obs.obs_property_list_item_count(extra_linked_list)
-	if count > 0 then
-		for i = 0, count - 1 do
-			local sourceName = obs.obs_property_list_item_string(extra_linked_list, i) -- get extra source by name
-			local extra_source = obs.obs_get_source_by_name(sourceName)
-			if extra_source ~= nil then
-				source_id = obs.obs_source_get_unversioned_id(extra_source)
-				if source_id == "text_gdiplus" or source_id == "text_ft2_source" then -- just another text object
-					getSourceOpacity(sourceName)
-				else -- check for filter named "Color Correction"
-
-					local color_filter = obs.obs_source_get_filter_by_name(extra_source, "Color Correction")
-					if color_filter ~= nil then -- update filters opacity
-						local filter_settings = obs.obs_source_get_settings(color_filter)
-						max_opacity[sourceName]={}
-						max_opacity[sourceName]["CC-opacity"] = obs.obs_data_get_double(filter_settings, "opacity")
-						obs.obs_data_release(filter_settings)
-						obs.obs_source_release(color_filter)
-					end
-				end
-			end
-			obs.obs_source_release(extra_source) -- release source ptr
-		end
-	end
-	d.DebugFunction("read_source_opacity", true)
-end
-
--------------------------------------------------------------------------------------------------------------------------
 -- SET TEXT VISIBILITY
 -- Manages visibility of the text sources from Hidden, through fading in or out, to Visible.
 -------------------------------------------------------------------------------------------------------------------------
@@ -1399,39 +1252,38 @@ function set_text_visibility(end_status)
 		d.DebugFunction("set_text_visibility", true)
 		return
 	end
-	
-	if end_status == TEXT_HIDE or end_status == TEXT_HIDDEN then
-		text_opacity = 0
-		text_status = TEXT_HIDDEN
-	elseif end_status == TEXT_SHOW or end_status == TEXT_VISIBLE then
-		text_opacity = 100
-		text_status = TEXT_VISIBLE
-	end
 
-	setSourceOpacity(source_name, fade_text_back)
-	setSourceOpacity(alternate_source_name, fade_alternate_back)
-	setSourceOpacity(title_source_name, fade_title_back)
-	setSourceOpacity(static_source_name, fade_static_back)
-	
+	local sources_to_process = {soruce_name, alternate_source_name, title_source_name, static_source_name}
 	local extra_linked_list = obs.obs_properties_get(script_props, "extra_linked_list")
 	local count = obs.obs_property_list_item_count(extra_linked_list)
+	count = count > #sources_to_process or #sources_to_process
 	if count > 0 then
 		for i = 0, count - 1 do
 			local sourceName = obs.obs_property_list_item_string(extra_linked_list, i) -- get extra source by name
-			local extra_source = obs.obs_get_source_by_name(sourceName)
-			if extra_source ~= nil then
-				source_id = obs.obs_source_get_unversioned_id(extra_source)
-				local sceneSource = obs.obs_frontend_get_current_preview_scene()
+			table.insert(sources_to_process, sourceName)
+		end
+	end
+	
+	for i=1, #sources_to_process do
+		if sources_to_process[i] ~= nil and sources_to_process[i] ~= "" then
+			local current_loop_source = obs.obs_get_source_by_name(sources_to_process[i])
+			if current_loop_source ~= nil then
+				local sceneSource = obs.obs_frontend_get_current_scene() -- need to choose between preview and current output. Not really sure how this works with transition_enabled
+				d.DebugBoolean("sceneSource", sceneSource==nil)
 				local sceneObj = obs.obs_scene_from_source(sceneSource)
-				local sceneItem = obs.obs_scene_find_source_recursive(sceneObj, sourceName)
+				d.DebugBoolean("sceneObj", sceneObj==nil)
+				local sceneItem = sceneFindSceneItemBySourceNameRecursive(sceneObj, sourceName)
+				d.DebugBoolean("sceneItem", sceneItem==nil)
 				obs.obs_source_release(sceneSource)
-				if text_opacity > 50 then
+				if end_status == TEXT_HIDE or end_status == TEXT_HIDDEN then
 					obs.obs_sceneitem_set_visible(sceneItem, true)
-				else
+					text_status = TEXT_HIDDEN
+				elseif end_status == TEXT_SHOW or end_status == TEXT_VISIBLE then
 					obs.obs_sceneitem_set_visible(sceneItem, false)
+					text_status = TEXT_VISIBLE
 				end
 			end
-			obs.obs_source_release(extra_source) -- release source ptr
+			obs.obs_source_release(current_loop_source) -- release source ptr
 		end
 	end
 	d.DebugFunction("set_text_visibility", true)
@@ -2678,12 +2530,6 @@ function script_properties()
 
 	local fade_prop = obs.obs_properties_add_bool(gp, "text_fade_enabled", "Enable Fade Transitions")
 	obs.obs_property_set_modified_callback(fade_prop, change_fade_property)
-	local fp1 = obs.obs_properties_add_int_slider(gp, "text_fade_speed", "<font color=#FFD966>Fade Speed</font>", 1, 10, 1)
-	local fp2 = obs.obs_properties_add_bool(gp,"use100percent", "Use 0-100% opacity for fades")
-	local fp3 = obs.obs_properties_add_bool(gp,"allowBackFade", "Enable Background Fading")
-	obs.obs_property_set_modified_callback(fp2, change_100percent_property)
-	obs.obs_property_set_modified_callback(fp3, change_back_fade_property)
-	local oprefprop = obs.obs_properties_add_button(gp, "refreshOP", "Mark Max Opacity for Source Fades", read_source_opacity_clicked)
 	obs.obs_properties_add_group(script_props, "disp_grp", "Display Options", obs.OBS_GROUP_NORMAL, gp)
 
 	-------------
@@ -2698,7 +2544,6 @@ function script_properties()
 		obs.OBS_COMBO_TYPE_LIST,
 		obs.OBS_COMBO_FORMAT_STRING
 	)
-	local flbprop = obs.obs_properties_add_bool(gp, "fade_text_back", "Fade Text Background")
 	local title_source_prop =
 		obs.obs_properties_add_list(
 		gp,
@@ -2707,7 +2552,6 @@ function script_properties()
 		obs.OBS_COMBO_TYPE_LIST,
 		obs.OBS_COMBO_FORMAT_STRING
 	)
-	local ftbprop = obs.obs_properties_add_bool(gp, "fade_title_back", "Fade Title Background")
 	local alternate_source_prop =
 		obs.obs_properties_add_list(
 		gp,
@@ -2716,7 +2560,6 @@ function script_properties()
 		obs.OBS_COMBO_TYPE_LIST,
 		obs.OBS_COMBO_FORMAT_STRING
 	)
-	local fabprop = obs.obs_properties_add_bool(gp, "fade_alternate_back", "Fade Alternate Background")
 	local static_source_prop =
 		obs.obs_properties_add_list(
 		gp,
@@ -2725,7 +2568,6 @@ function script_properties()
 		obs.OBS_COMBO_TYPE_LIST,
 		obs.OBS_COMBO_FORMAT_STRING
 	)
-	local fsbprop = obs.obs_properties_add_bool(gp, "fade_static_back", "Fade Static Background")
 	obs.obs_properties_add_button(gp, "prop_refresh", "Refresh All Sources", refresh_button_clicked)
 
 	local dlprop = obs.obs_properties_add_button(gp, "do_link_button", "Add Additional Linked Sources", do_linked_clicked)
@@ -2752,7 +2594,6 @@ function script_properties()
 	)
 	obs.obs_property_set_modified_callback(extra_source_prop, link_source_selected)
 	obs.obs_properties_add_bool(xgp, "link_extra_with_text", "Show/Hide Sources with Lyrics Text")
-	local febprop = obs.obs_properties_add_bool(xgp, "fade_extra_back", "Fade Background for Text Sources")
 	local clearcall_prop =
 		obs.obs_properties_add_button(xgp, "linked_clear_button", "Clear Linked Sources", clear_linked_clicked)
 	local extra_group_prop =
@@ -2801,18 +2642,7 @@ function script_properties()
 	obs.obs_property_set_enabled(hktitletext, false)
 	obs.obs_property_set_visible(edit_group_prop, false)
 	obs.obs_property_set_visible(meta_group_prop, false)
-	obs.obs_property_set_visible(fp1, text_fade_enabled)
-	obs.obs_property_set_visible(fp2, text_fade_enabled)
-	obs.obs_property_set_visible(fp3, text_fade_enabled)
-	obs.obs_property_set_visible(flbprop, text_fade_enabled and allow_back_fade)
-	obs.obs_property_set_visible(ftbprop, text_fade_enabled and allow_back_fade)
-	obs.obs_property_set_visible(fabprop, text_fade_enabled and allow_back_fade)
-	obs.obs_property_set_visible(fsbprop, text_fade_enabled and allow_back_fade)
-	obs.obs_property_set_visible(febprop, text_fade_enabled and allow_back_fade)
-	obs.obs_property_set_visible(oprefprop, text_fade_enabled and not use100percent)
 
-
-	read_source_opacity()
 	d.DebugFunction("script_properties", true)
 	return script_props
 end
@@ -2824,7 +2654,6 @@ end
 function script_update(settings)
 	d.DebugFunction("script_update")
 	text_fade_enabled = obs.obs_data_get_bool(settings, "text_fade_enabled")
-	text_fade_speed = obs.obs_data_get_int(settings, "text_fade_speed")
 	display_lines = obs.obs_data_get_int(settings, "prop_lines_counter")
 	source_name = obs.obs_data_get_string(settings, "prop_source_list")
 	alternate_source_name = obs.obs_data_get_string(settings, "prop_alternate_list")
@@ -2834,13 +2663,6 @@ function script_update(settings)
 	link_text = obs.obs_data_get_bool(settings, "do_link_text")
 	rename_sources = obs.obs_data_get_bool(settings, "rename_sources")
 	link_extras = obs.obs_data_get_bool(settings, "link_extra_with_text")
-	use100percent = obs.obs_data_get_bool(settings, "use100percent")
-	allow_back_fade = obs.obs_data_get_bool(settings, "allowBackFade")
-	fade_text_back = obs.obs_data_get_bool(settings, "fade_text_back") and allow_back_fade
-	fade_title_back = obs.obs_data_get_bool(settings, "fade_title_back") and allow_back_fade
-	fade_alternate_back = obs.obs_data_get_bool(settings, "fade_alternate_back") and allow_back_fade
-	fade_static_back = obs.obs_data_get_bool(settings, "fade_static_back") and allow_back_fade
-	fade_extra_back = obs.obs_data_get_bool(settings, "fade_extra_back") and allow_back_fade
 	source_meta_tags = obs.obs_data_get_string(settings, "prop_edit_metatags")
 --	update_monitor()
 d.DebugFunction("script_update", true)
@@ -2853,9 +2675,7 @@ function script_defaults(settings)
 	d.DebugFunction("script_defaults")
 	obs.obs_data_set_default_int(settings, "prop_lines_counter", 2)
 	obs.obs_data_set_default_string(settings, "hotkey-title", "Button Function\t\tAssigned Hotkey Sequence")
-	obs.obs_data_set_default_bool(settings,"use100percent", true)
 	obs.obs_data_set_default_bool(settings,"text_fade_enabled", false)
-	obs.obs_data_set_default_int(settings,"text_fade_speed", 5)
 	obs.obs_data_set_default_bool(settings,"rename_sources", true)
 	if os.getenv("HOME") == nil then
 		windows_os = true
