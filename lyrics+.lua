@@ -56,6 +56,18 @@
 	The following is a simple list of functions that will likely be affected, simply based on a cursory look
 	at the function names, and may not be complete or accurate of the final picture.
 
+	All custom fading code has been removed.  Now we need to build in the new logic to allow fading of text between
+	pages.  This new way will allow transitions from old to new, or from old to blank to new, depending on if
+	separate sources are chosen in the interface or not, respectively, in combination with the Fade Transitions
+	checkbox in the settings.  There is room for debate about whether or not the creation of the duplicate
+	sources to facilitate the transition should be created by the script, likely as a private source. While
+	there are some benefits to this, it hides some of the implementation details inside the script, and 
+	will require constantly checking the transition and other settings of the original and duplicating these
+	to the private duplicate source.  By allowing the user to create and manage the duplicate source, it 
+	forces the user to be in control of the transitions and to manage that on their own, reducing what the script 
+	is able to get wrong.
+
+
 		Things likely not needed
 		
 		Things likely to be adjusted
@@ -63,31 +75,16 @@
 			function transition_lyric_text(force_show)
 			function update_source_text()
 			function toggle_lyrics_visibility
-			
+			function change_fade_property
+			function script_properties
+			function script_update
+			function script_defaults
 			
 		Things removed
-			function start_fade_timer()
-			function apply_source_opacity() -- collapsed into set_text_visibility
-			all_sources_fade
-			function setSourceOpacity(sourceName, fadeBackground) - Will be removed along with text_opacity.  setSourceOpacity no longer adds
-																															relevant logic, but uses text_opacity.
-			text_opacity - This value is no longer needed since we are not tracking the change in opacity.
-			text_fade_speed - We will not be controlling the fade speed in script.
-			use100percent
-			refreshOP
-			read_source_opacity_clicked
-			read_source_opacity
-			getSourceOpacity
-			change_100percent_property
-			fade_speed_prop
-			max_opacity
-			allow_back_fade
+		
 			
 		Things adjusted
-			function setSourceOpacity(sourceName, fadeBackground)
-			function fade_callback() -- kept for timebeing, as it may be useful in reimplementation. Will remove if not.
-			function set_text_visibility(end_status)
-			function transition_lyric_text(force_show)
+			
 	
 --]]
 
