@@ -1304,14 +1304,22 @@ function transition_lyric_text(force_show)
 	if (text_status == TEXT_HIDDEN or text_status == TEXT_HIDING) and not force_show then
 		update_source_text()
 		d.DebugInner("hidden")
-	else--if not text_fade_enabled then
+	elseif not text_fade_enabled then
 		d.DebugCustom("Instant On")
-		set_text_visibility(TEXT_HIDDEN)
 		update_source_text()
 		set_text_visibility(TEXT_VISIBLE)
 		d.DebugInner("no text fade")
-	--else -- initiate fade out/in
-
+	else --if single source fade initiate fade out/in
+		d.DebugInner("Single Source Fade")
+		set_text_visibility(TEXT_HIDDEN)
+		update_source_text()
+		set_text_visibility(TEXT_VISIBLE)
+	--[[ else --double source fade
+		d.DebugInner("Double Source Fade")
+		update_source_text()
+		set_text_visibility(TEXT_HIDDEN) -- current active text source
+		set_text_visibility(TEXT_VISIBLE) -- next active text source
+	]]
 	end
 	d.DebugBoolean("using_source", using_source)
 	d.DebugFunction("transition_lyric_text", true)
@@ -2533,38 +2541,69 @@ function script_properties()
 	obs.obs_properties_add_button(script_props, "src_showing", "▲- HIDE SOURCE TEXT SELECTIONS -▲", change_src_visible)
 	gp = obs.obs_properties_create()
 
-	local source_prop =
+	local source_prop = {
 		obs.obs_properties_add_list(
 		gp,
 		"prop_source_list",
 		"<font color=#FFD966>Text Source</font>",
 		obs.OBS_COMBO_TYPE_LIST,
 		obs.OBS_COMBO_FORMAT_STRING
-	)
-	local title_source_prop =
+		),
+		obs.obs_properties_add_list(
+		gp,
+		"prop_source_list",
+		"<font color=#FFD966>Text Source 2</font>",
+		obs.OBS_COMBO_TYPE_LIST,
+		obs.OBS_COMBO_FORMAT_STRING)
+	}
+	local title_source_prop = {
 		obs.obs_properties_add_list(
 		gp,
 		"prop_title_list",
 		"<font color=#FFD966>Title Source</font>",
 		obs.OBS_COMBO_TYPE_LIST,
 		obs.OBS_COMBO_FORMAT_STRING
-	)
-	local alternate_source_prop =
+		),
+		obs.obs_properties_add_list(
+		gp,
+		"prop_title_list",
+		"<font color=#FFD966>Title Source 2</font>",
+		obs.OBS_COMBO_TYPE_LIST,
+		obs.OBS_COMBO_FORMAT_STRING
+		)
+	}
+	local alternate_source_prop = {
 		obs.obs_properties_add_list(
 		gp,
 		"prop_alternate_list",
 		"<font color=#FFD966>Alternate Source</font>",
 		obs.OBS_COMBO_TYPE_LIST,
 		obs.OBS_COMBO_FORMAT_STRING
-	)
-	local static_source_prop =
+		),
+		obs.obs_properties_add_list(
+		gp,
+		"prop_alternate_list",
+		"<font color=#FFD966>Alternate Source 2</font>",
+		obs.OBS_COMBO_TYPE_LIST,
+		obs.OBS_COMBO_FORMAT_STRING
+		)
+	}
+	local static_source_prop = {
 		obs.obs_properties_add_list(
 		gp,
 		"prop_static_list",
 		"<font color=#FFD966>Static Source</font>",
 		obs.OBS_COMBO_TYPE_LIST,
 		obs.OBS_COMBO_FORMAT_STRING
-	)
+		),
+		obs.obs_properties_add_list(
+		gp,
+		"prop_static_list",
+		"<font color=#FFD966>Static Source</font>",
+		obs.OBS_COMBO_TYPE_LIST,
+		obs.OBS_COMBO_FORMAT_STRING
+		)
+	}
 	obs.obs_properties_add_button(gp, "prop_refresh", "Refresh All Sources", refresh_button_clicked)
 
 	local dlprop = obs.obs_properties_add_button(gp, "do_link_button", "Add Additional Linked Sources", do_linked_clicked)
@@ -2622,15 +2661,15 @@ function script_properties()
 			end
 		end
 		table.sort(n)
-		obs.obs_property_list_add_string(source_prop, "", "")
-		obs.obs_property_list_add_string(title_source_prop, "", "")
-		obs.obs_property_list_add_string(alternate_source_prop, "", "")
-		obs.obs_property_list_add_string(static_source_prop, "", "")
+		obs.obs_property_list_add_string(source_prop[1], "", "")
+		obs.obs_property_list_add_string(title_source_prop[1], "", "")
+		obs.obs_property_list_add_string(alternate_source_prop[1], "", "")
+		obs.obs_property_list_add_string(static_source_prop[1], "", "")
 		for _, name in ipairs(n) do
-			obs.obs_property_list_add_string(source_prop, name, name)
-			obs.obs_property_list_add_string(title_source_prop, name, name)
-			obs.obs_property_list_add_string(alternate_source_prop, name, name)
-			obs.obs_property_list_add_string(static_source_prop, name, name)
+			obs.obs_property_list_add_string(source_prop[1], name, name)
+			obs.obs_property_list_add_string(title_source_prop[1], name, name)
+			obs.obs_property_list_add_string(alternate_source_prop[1], name, name)
+			obs.obs_property_list_add_string(static_source_prop[1], name, name)
 		end
 	end
 	obs.source_list_release(sources)
